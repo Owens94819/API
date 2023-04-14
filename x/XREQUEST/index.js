@@ -1,6 +1,6 @@
 
 
- var _end="XRequest.res[$][1].remove();XRequest.resId--;"
+// var _end="XRequest.res[$][1].remove();XRequest.resId--;"
 
 module.exports=(req, res) => {
   res.setHeader("content-type", "text/javascript");

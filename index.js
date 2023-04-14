@@ -1,7 +1,7 @@
 //require("./HTTPParser");
 
 
- express = require("express"),
+ const express = require("express"),
   app = express(),
    fetch = require("node-fetch"),
   url = require("url"),
@@ -18,7 +18,7 @@
     var port = server.address().port;
     console.log(`http://localhost:${port}\n-----------`);
   }),
-  _end="XRequest.res[$][1].remove();XRequest.resId--;"
+  _end="XRequest.res[$][1].remove();XRequest.resId--;";
 
 app.use((req, res, next) => {
 	try{

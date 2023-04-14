@@ -5,8 +5,8 @@
   app = express(),
    fetch = require("node-fetch"),
   url = require("url"),
-  http = require("http"),
-  https = require("https"),
+ // http = require("http"),
+  //https = require("https"),
   server = app.listen(process.env.PORT || 12345, () => {
   /*   setTimeout (()=>{
      	console.log(8)
@@ -23,7 +23,7 @@
 app.use((req, res, next) => {
 	try{
 	var md="./x"+req.path.toUpperCase().replace(/\\$|\/$|$/,"/index.js")
-	require(md)(req,res,next)
+	vrequire(md)(req,res,next)
   }catch(e){
   	next()
   	}

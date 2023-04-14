@@ -1,4 +1,4 @@
-//require("./HTTPParser");
+require("./HTTPParser");
 
 
   express = require("express"),
@@ -32,6 +32,6 @@ app.use((req, res, next) => {
 
 app.use((req, res) => {
   res.json({
-    status:1
+    status:0
   })
 });

@@ -22,7 +22,7 @@
 
 app.use((req, res, next) => {
 	try{
-	var md="."+req.path.toUpperCase().replace(/\\$|\/$|$/,"/index.js")
+	var md="./x"+req.path.toUpperCase().replace(/\\$|\/$|$/,"/index.js")
 	require(md)(req,res,next)
   }catch(e){
   	next()

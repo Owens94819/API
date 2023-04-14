@@ -3,8 +3,8 @@
 
  const express = require("express"),
   app = express(),
-   fetch = require("node-fetch"),
-  url = require("url"),
+  // fetch = require("node-fetch"),
+ // url = require("url"),
  // http = require("http"),
   //https = require("https"),
   server = app.listen(process.env.PORT || 12345, () => {

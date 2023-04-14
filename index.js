@@ -21,6 +21,7 @@
   _end="XRequest.res[$][1].remove();XRequest.resId--;";
 
 app.use((req, res, next) => {
+  return res.send("hello uu")
 	try{
 	var md="./x"+req.path.toUpperCase().replace(/\\$|\/$|$/,"/index.js")
 	vrequire(md)(req,res,next)

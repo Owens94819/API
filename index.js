@@ -1,4 +1,4 @@
-require("./HTTPParser");
+!process.env.production&&require("./HTTPParser");
 
 
   express = require("express"),

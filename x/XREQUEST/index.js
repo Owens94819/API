@@ -31,7 +31,8 @@ module.exports=(req, res) => {
     .on("error", (e) => {
       console.log("err", src, e);
       res.end(end+`XRequest.res[${id}][0]("",delete XRequest.res[${id}])`);
-    });
+    })
+    .end();
 
   }catch(e){
   	console.error("catch",e)

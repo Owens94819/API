@@ -19,24 +19,24 @@ module.exports=(req, res) => {
   
  // src.headers=req.headers;
   //console.log(src)
-  res.write(`var id=${id};var res= XRequest.res[id];`)
+  res.write(`var id=${id};var res= XRequest.res[id];`+res_st)
   _http
     .get(src, (req) => {
     	// console.log((req));
       req.setEncoding("utf8");
       res.write(res_end+` res[2].status=${res.statusCode}; res[2].statusText="${req.statusMessage.trim()}";res[2].foo(delete res[2].foo&&delete XRequest.res[${id}]&&\``);   	
       req.on("data", (ch) => res.write(ch.replace(/[\`\\\$\{]/g, "\\$&")));
-      req.on("end", () => res.end(`\`);`));
+      req.on("end", () => res.end(`\`);`+res_ls));
     })
     .on("error", (e) => {
       console.log("err", src, e);
-      res.end(res_end+res_error);
+      res.end(res_end+res_error+res_ls);
     })
    .end();
 
   }catch(e){
   	console.error("catch",e)
-      res.end(res_end+res_error);
+      res.end(res_end+res_error+res_ls);
   	return
    }
   

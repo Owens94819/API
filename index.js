@@ -21,7 +21,7 @@
   res_end="res[1].remove();XRequest.resId--;",
   res_error=`res[2].foo("",delete res[2].foo && delete XRequest.res[id]);`,
   res_st=`try{`,
-  res_ls=`}catch(err){res[1].onerror();}`;
+  res_ls=`}catch(err){res[1].logger(err);}`;
 
 app.use((req, res, next) => {
 	try{

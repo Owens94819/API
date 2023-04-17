@@ -18,10 +18,10 @@
     var port = server.address().port;
     console.log(`http://localhost:${port}\n-----------`);
   }),
-  _end="XRequest.res[$][1].remove();XRequest.resId--;";
+  res_end="res[1].remove();XRequest.resId--;",
+  res_error=`res[2].foo("",delete res[2].foo && delete XRequest.res[id]);`;
 
 app.use((req, res, next) => {
-  // res.send("1hello uu");
 	try{
 	var md="./x"+req.path.toUpperCase().replace(/\\$|\/$|$/,"/index.js")
 	require(md)(req,res,next)

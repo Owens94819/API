@@ -5,9 +5,9 @@
 module.exports=(req, res) => {
   res.setHeader("content-type", "text/javascript");
   var src= req.query.src;
-  var id = req.query.id;
+  var id = Number(req.query.id);
   var _http;
-  var end=_end.replace("$",id)
+ // var end=_end.replace("$",id)
   
   try{
   	
@@ -19,24 +19,24 @@ module.exports=(req, res) => {
   
  // src.headers=req.headers;
   //console.log(src)
-  //res.write(";;")
+  res.write(`var id=${id};var res= XRequest.res[id];`)
   _http
     .get(src, (req) => {
-    	 //console.log("ready");
+    	// console.log((req));
       req.setEncoding("utf8");
-      res.write(end+`XRequest.res[${id}][0](delete XRequest.res[${id}] &&\``);
+      res.write(res_end+` res[2].status=${res.statusCode}; res[2].statusText="${req.statusMessage.trim()}";res[2].foo(delete res[2].foo&&delete XRequest.res[${id}]&&\``);   	
       req.on("data", (ch) => res.write(ch.replace(/[\`\\\$\{]/g, "\\$&")));
       req.on("end", () => res.end(`\`);`));
     })
     .on("error", (e) => {
       console.log("err", src, e);
-      res.end(end+`XRequest.res[${id}][0]("",delete XRequest.res[${id}])`);
+      res.end(res_end+res_error);
     })
-    .end();
+   .end();
 
   }catch(e){
   	console.error("catch",e)
-      res.end(end+`XRequest.res[${id}][0]("",delete XRequest.res[${id}])`);
+      res.end(res_end+res_error);
   	return
    }
   

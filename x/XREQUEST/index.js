@@ -23,8 +23,8 @@ module.exports=(req, res) => {
   _http
     .get(src, (req) => {
     	// console.log((req));
-      req.setEncoding("utf8");
-      res.write(res_end+` res[2].status=${res.statusCode}; res[2].statusText="${req.statusMessage.trim()}";res[2].foo(delete res[2].foo&&delete XRequest.res[${id}]&&\``);   	
+      req.setEncoding("utf8"); 
+      res.write(res_end+` res[1].status=${res.statusCode}; res[1].statusText="${req.statusMessage.trim()}";res[1].foo(delete res[1].foo&&delete XRequest.res[${id}]&&\``);   	
       req.on("data", (ch) => res.write(ch.replace(/[\`\\\$\{]/g, "\\$&")));
       req.on("end", () => res.end(`\`);`+res_ls));
     })

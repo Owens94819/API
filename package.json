@@ -10,9 +10,10 @@
   "license": "ISC",
   "dependencies": {
     "@google-cloud/local-auth": "^2.1.1",
-    "googleapis": "^113.0.0",
     "express": "^4.17.2",
-    "node-fetch": "^2.6.1",
-    "mime-types": "2.1.35"
+    "googleapis": "^113.0.0",
+    "mime-type": "^4.0.0",
+    "mime-types": "^2.1.35",
+    "node-fetch": "^2.6.1"
   }
 }

@@ -1,39 +1,46 @@
-!process.env.production&&require("./HTTPParser");
+function _require(md) {
+  const _md = md.toLowerCase();
+  if (!_require.module.hasOwnProperty(_md)) _require.module[_md] = require(md);
+  return _require.module[_md];
+}
 
+_require.module = {};
 
-  express = require("express"),
+const express = require("express"),
   app = express(),
-  // fetch = require("node-fetch"),
   url = require("url"),
   http = require("http"),
   https = require("https"),
   server = app.listen(process.env.PORT || 1000, () => {
-  /*   setTimeout (()=>{
-     	console.log(8)
-     fetch("http:/\/localhost:12345/XRequest?id=0&src=http:/\/localhost:8158/test.js")
-   .then(e=>e.text())
-  .then(console.log)
-  },2000);
-  */
     var port = server.address().port;
     console.log(`http://localhost:${port}\n-----------`);
-  }),
-  res_end="res[0]&&res[0].remove&&res[0].remove();XRequest.resId--;",
-  res_error=`res[1].foo("",delete res[1].foo && delete XRequest.res[id]);`,
-  res_st=`try{`,
-  res_ls=`}catch(err){res[0]&&res[0].logger(err);}`;
+    return;
+    setTimeout(() => {
+      console.log(8)
+      let url = "https://www.google.com/search?q=send+stream+as+response+content-type+nodejs&sca_esv=575386901&hl=en&tbm=isch&sxsrf=AM9HkKk_qc6SIlKvRVhCIEAhSdTnngyPbw:1697882354761&source=lnms&sa=X&ved=2ahUKEwjlzoDV8IaCAxXzLUQIHWUhDegQ_AUoAXoECAIQAw&biw=1366&bih=629&dpr=1"
+      url = "http://localhost:5000/titles/htmx in 100 seconds(720P_HD).mp4"
+      url=encodeURIComponent(url);
+      fetch("http:/\/localhost:1000/my-google-drive?url="+url)
+        .then(e => "done!")
+        .then(console.log)
+    }, 1000);
+  });
 
 app.use((req, res, next) => {
-	try{
-	var md="./x"+req.path.toUpperCase().replace(/\\$|\/$|$/,"/index.js")
-	require(md)(req,res,next)
-  }catch(e){
-  	next()
-  	}
+  try {
+    var md = "./x" + req.path.toUpperCase().replace(/\\$|\/$|$/, "/index.js")
+    _require(md)(req, res, next)
+  } catch (e) {
+    console.error(e);
+    next()
+  }
 });
 
 app.use((req, res) => {
   res.json({
-    status:0
+    status: 0
   })
 });
+
+
+global.express = express;

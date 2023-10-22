@@ -47,10 +47,7 @@ const rootFolderId = new Promise(async (r, j) => {
   }
 });
 
-/**
- * Insert new file.
- * @return{obj} file Id
- * */
+
 async function createFile({ stream, name, type, _service }, cb) {
 
   const requestBody = {
@@ -86,9 +83,10 @@ async function updateFile(fileId, { stream, type, _service }, cb) {
 
   return file;
 }
-async function exist({ name, _service }) {
+async function findFile({ name, _service }) {
   const response = await _service.files.list({
-    q: `'${await rootFolderId}' in parents and name = '${name}'`
+    q: `'${await rootFolderId}' in parents and name = '${name}'`,
+    fields: "files(id, size, name, mimeType)"
   })
 
   const files = response.data.files;
@@ -100,11 +98,20 @@ async function exist({ name, _service }) {
 
   return file;
 }
-async function listFilesInFolder({_service}) {
+async function listFiles({_service}) {
   const res = await _service.files.list({
     q: `'${await rootFolderId}' in parents`, // Replace with the folder ID you want to list files from
+    fields:"files(id, name, mimeType, size)"
   });
 
+  const files = res.data.files;
+  return files;
+}
+async function listFilesOnly({_service}) {
+  const res = await _service.files.list({
+    q: `'${await rootFolderId}' in parents and mimeType != 'application/vnd.google-apps.folder'`, // Replace with the folder ID you want to list files from
+    fields:"files(id, name, mimeType, size)"
+  });
   const files = res.data.files;
   return files;
 }
@@ -117,12 +124,11 @@ async function getFileLink(fileId, {_service}) {
   const link = res.data.webViewLink;
   return link;
 }
-
 async function uploadBasic({ name, type }) {
   if (!type) type = mimeType.lookup(name) || "application/octet-stream";
 
   try {
-    const fileId = (await exist(...arguments))?.id;
+    const fileId = (await findFile(...arguments))?.id;
     let file;
     // console.log(fileId);
     if (fileId) {
@@ -256,7 +262,7 @@ module.exports = async (req, res) => {
         }
       } else {
         msg.type = "error"
-        console.error(msg.msg = "error: response not ok");
+        console.error(msg.msg = "response not ok");
         res.status(206);
         res.end();
         console.log(stream.headers);
@@ -266,11 +272,11 @@ module.exports = async (req, res) => {
 
     })
 
-    server.on("error", (error) => err("Error: " + error))
+    server.on("error", (error) => err(error+""))
 
     server.end();
   } catch (error) {
-    err("Error: " + error);
+    err(error+"");
   }
 }
 
@@ -282,6 +288,6 @@ function setToken(token) {
 }
 
 (async ()=>{
-// d= await getFileLink("1kGfrhjcbWoBRqzU_LxZTo4jWYo0ksSO3uuu",{_service:service});
+// d= await findFile({_service:service,name:"vid.mp4"}); 
 // console.log(d);
-})()
+})(); 

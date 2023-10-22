@@ -14,16 +14,15 @@ const express = require("express"),
   server = app.listen(process.env.PORT || 1000, () => {
     var port = server.address().port;
     console.log(`http://localhost:${port}\n-----------`);
-    return;
-    setTimeout(() => {
-      console.log(8)
+    // return;
+    // setTimeout(() => {
       let url = "https://www.google.com/search?q=send+stream+as+response+content-type+nodejs&sca_esv=575386901&hl=en&tbm=isch&sxsrf=AM9HkKk_qc6SIlKvRVhCIEAhSdTnngyPbw:1697882354761&source=lnms&sa=X&ved=2ahUKEwjlzoDV8IaCAxXzLUQIHWUhDegQ_AUoAXoECAIQAw&biw=1366&bih=629&dpr=1"
-      url = "http://localhost:5000/titles/htmx in 100 seconds(720P_HD).mp4"
+     // url = "http://localhost:5000/titles/htmx in 100 seconds(720P_HD).mp4"
       url=encodeURIComponent(url);
       fetch("http:/\/localhost:1000/my-google-drive?url="+url)
         .then(e => "done!")
-        .then(console.log)
-    }, 1000);
+        .then(console.log) 
+    // }, 1000);
   });
 
 app.use((req, res, next) => {

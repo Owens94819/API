@@ -12,7 +12,7 @@
     "@google-cloud/local-auth": "^2.1.1",
     "express": "^4.17.2",
     "googleapis": "^113.0.0",
-    "mime-type": "^4.0.0",
+   
     "mime-types": "^2.1.35",
     "node-fetch": "^2.6.1"
   }

@@ -28,19 +28,19 @@ app.use((req, res) => {
   })
 });
 
-TEST=false;
+TEST = false;
 globalThis.express = express;
-globalThis._require=_require;
+globalThis._require = _require; 
 _require.module = {};
 function _require(md, key) {
   const _md = md.toLowerCase();
   if (!_require.module.hasOwnProperty(_md)) {
-    if(key){
-      const res= _require.module[_md] = require(md);
-      _require.module[_md]=res[key]
+    if (key) {
+      const res = _require.module[_md] = require(md);
+      _require.module[_md] = res[key]
       return res
-    }else{
-     return  _require.module[_md] = require(md);
+    } else {
+      return _require.module[_md] = require(md);
     }
   }
   return _require.module[_md];

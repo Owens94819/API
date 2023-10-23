@@ -221,8 +221,10 @@ module.exports = async (req, res) => {
         let _type = type.replace(/\;[^]+$/, "").trim();
         const iv = /[^(a-z)(0-9)_\-.@]/ig;
 
-        if (!name) name = (url.match(/[^\\\/]+$/) || [`Unknown - ${Date.now()}`])[0].replace(iv, "_ ");
-
+        if (!name) {
+          name = (url.match(/[^\\\/]+[\?$]/) || [`Unknown - ${Date.now()}`])[0].replace(/\?([^]?)+$/,"").replace(iv, "_ ");
+        }
+     
         let ext = (name.match(/[^\\\/.]+$/) || [""])[0].toLowerCase();
         ext = mimeType.types[ext]
         if (!ext) {

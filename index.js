@@ -40,7 +40,6 @@ app.use((req, res) => {
     status: 0
   })
 });
-// 
-//https://x.cyclic.app
-//https://sites.google.com/view/my-g-drive
+
+
 global.express = express;

@@ -139,7 +139,8 @@ async function downloadFile(fileId, { _service, stream }) {
   return response;
 }
 async function getPortionOfFile(fileId, { startByte, endByte, _service: { context: { _options: { auth } } } }) {
-  const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+  let fields="";
+  const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&fields=${fields}`;
   const headers = {
     'Range': `bytes=${startByte}-${endByte}`,
     'Authorization': `Bearer ${(await auth.getAccessToken()).token}`, // Replace with your access token

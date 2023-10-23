@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        [type="error"] {
+            color: #FF5722;
+        }
+
+        [type="complete"] { 
+            color: #2ec836;
+        }  
+
+        [hidden="true"] {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <form action="/MY-GOOGLE-DRIVE" method="get" id="req">
+        <div>
+            <h3>The url to source you want to upload (required*)</h3>
+            <input type="text" name="url" placeholder="Enter Url" required />
+        </div>
+        <details>
+            <summary>Advance</summary>
+            <div>
+                <h3>What should we call the file? (optional)</h3>
+                <input type="text" name="name" placeholder="file name">
+            </div>
+            <div>
+                <h3>Do you know the source Mime Type? (optional)</h3>
+                <input type="text" name="type" placeholder="file mime type">
+            </div>
+            <div>
+                <h3>Do you have a valid api Credentials? (optional)</h3>
+                <input type="text" name="credentials" placeholder="credentials">
+            </div>
+            <div hidden="true">
+                <h3>Should emits Error codes? (optional)</h3>
+                <input type="text" name="okstatus" placeholder="true/false" value="true">
+            </div>
+        </details>
+        <br>
+        <div>
+            <input type="submit" name="button" value="Submit" id="button">
+        </div>
+    </form>
+    <div id="panel" hidden="true">
+        <h3>Response</h3>
+        <div id="msg">
+
+        </div>
+    </div>
+    <div id="links" hidden="true">
+        <h3>Links</h3>
+
+    </div>
+    <script>
+        function add({ download, name, id }) {
+            let elm;
+            if (elm = links.querySelector(`[id="${id}"]`)) {
+                elm.remove();
+            }
+            links.innerHTML += `
+                <a href="${download}" id="${id}">${name}</a> <br>    
+                `
+        }
+        for (const key in localStorage) {
+            links.hidden = false
+            if (Object.hasOwnProperty.call(localStorage, key)) {
+                add(JSON.parse(localStorage[key]));
+
+            }
+        }
+        function set(data) {
+            switch (data.type) {
+                case "complete":
+                    const download = `https://drive.google.com/u/0/uc?id=${data.msg.id}&export=download`
+                    msg.innerHTML = `
+                    <a href="${download}">${data.msg.name}</a>
+                    `
+                    data.msg.download = download
+                    add(data.msg)
+                    localStorage[data.msg.id] = JSON.stringify(data.msg)
+                    break;
+                case "error":
+                    msg.innerHTML = data.msg;
+                    break;
+                case "uploading":
+                    msg.innerHTML = ("Bytes uploaded: " + data.msg)
+                    break;
+                default:
+                    msg.append(data.msg)
+                    break;
+            }
+
+            console.log(data);
+            msg.setAttribute('type', data.type)
+            const br = document.createElement('br')
+            msg.appendChild(br)
+        }
+        function loading(loading) {
+            loading = Boolean(loading);
+            if (loading) {
+                button.value = "loading..."
+            } else {
+                button.value = "submit"
+            }
+            button.disabled = loading
+        }
+        req.onsubmit = ev => {
+            msg.innerText = ""
+            panel.hidden = false;
+
+            if (window.EventSource) ev.preventDefault();
+
+            loading(true);
+
+            let url = req.action + "?";
+            for (const { name, value } of req.elements) {
+                url += `${name || "unknown"}=${encodeURIComponent(value || "")}&`
+            }
+            url += "t=" + Date.now();
+
+            const stream = new EventSource(url)
+            stream.onmessage = ({ data }) => {
+                data = JSON.parse(data);
+                set(data)
+            }
+            stream.onopen = (e) => {
+                console.log("opened");
+            }
+            stream.onerror = (e) => {
+                stream.close();
+                loading(false)
+                console.log("closed")
+            }
+        }
+
+        // req.action = "https://x.cyclic.app/MY-GOOGLE-DRIVE"
+
+
+    </script>
+</body>
+
+</html>

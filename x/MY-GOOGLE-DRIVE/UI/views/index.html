@@ -92,7 +92,7 @@
                     msg.innerHTML = data.msg;
                     break;
                 case "uploading":
-                    msg.innerHTML = ("Bytes uploaded: " + data.msg)
+                    msg.innerHTML = ("MB uploaded: " + ((data.msg)/1024)/1024)
                     break;
                 default:
                     msg.append(data.msg)

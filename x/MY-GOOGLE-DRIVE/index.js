@@ -138,22 +138,22 @@ async function downloadFile(fileId, { _service, stream }) {
 
   return response;
 }
-async function getPortionOfFile(fileId, {startByte, endByte, _service:{context:{_options:{auth}}}}) {
-    const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
-    const headers = {
-      'Range': `bytes=${startByte}-${endByte}`,
-      'Authorization': `Bearer ${(await auth.getAccessToken()).token}`, // Replace with your access token
-    };
+async function getPortionOfFile(fileId, { startByte, endByte, _service: { context: { _options: { auth } } } }) {
+  const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+  const headers = {
+    'Range': `bytes=${startByte}-${endByte}`,
+    'Authorization': `Bearer ${(await auth.getAccessToken()).token}`, // Replace with your access token
+  };
 
-    const response = await fetch(url, { method: 'GET', headers });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to download the portion of the file. Status: ${response.status}`);
-    }
+  const response = await fetch(url, { method: 'GET', headers });
 
-    return response;
+  if (!response.ok) {
+    throw new Error(`Failed to download the portion of the file. Status: ${response.status}`);
+  }
+
+  return response;
 }
-async function setPortionOfFile(fileId, {startByte, endByte, _service:{context:{_options:{auth}}}}) {
+async function setPortionOfFile(fileId, { startByte, endByte, _service: { context: { _options: { auth } } } }) {
   return null
 }
 async function uploadBasic({ name, type }) {
@@ -175,7 +175,7 @@ async function uploadBasic({ name, type }) {
   }
 }
 
-module.exports = async (req, res) => {
+async function Response(req, res) {
   const msg = {
     msg: null,
     type: null
@@ -321,12 +321,16 @@ function setToken(token) {
   if (!token.type) token.type = "authorized_user";
 }
 
-(async () => {
-  // Request a new access token.
-  // const accessToken = await oauth2Client.getAccessToken();
-  // id="1hjqHSKm9t-ajGXKCo6OvyNFjk_xOJzLd";
-  // list = await getPortionOfFile(id,{startByte:0,endByte:5,_service:service});
-  // t=await list.text();
-  // t=await listFilesOnly({_service:service})
-  // console.log(t,process.env); 
-})(); 
+
+if (TEST) {
+  module.exports = {
+    Response,
+    listFilesOnly,
+     listFiles,
+      getPortionOfFile,
+      oauth2Client,
+      service
+  }
+} else {
+  module.exports = Response
+}

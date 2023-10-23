@@ -1,35 +1,21 @@
-function _require(md) {
-  const _md = md.toLowerCase();
-  if (!_require.module.hasOwnProperty(_md)) _require.module[_md] = require(md);
-  return _require.module[_md];
-}
-
-_require.module = {};
+require('dotenv').config()
 
 const express = require("express"),
+  ENV = process.env,
   app = express(),
   url = require("url"),
   http = require("http"),
   https = require("https"),
-  server = app.listen(process.env.PORT || 1000, () => {
+  server = app.listen(ENV.PORT, () => {
     var port = server.address().port;
     console.log(`http://localhost:${port}\n-----------`);
-    // _require('./x/MY-GOOGLE-DRIVE/index');
-    // return;
-    // setTimeout(() => {
-      // let url = "https://www.google.com/search?q=send+stream+as+response+content-type+nodejs&sca_esv=575386901&hl=en&tbm=isch&sxsrf=AM9HkKk_qc6SIlKvRVhCIEAhSdTnngyPbw:1697882354761&source=lnms&sa=X&ved=2ahUKEwjlzoDV8IaCAxXzLUQIHWUhDegQ_AUoAXoECAIQAw&biw=1366&bih=629&dpr=1"
-     // url = "http://localhost:5000/titles/htmx in 100 seconds(720P_HD).mp4"
-      // url=encodeURIComponent(url);
-      // fetch("http:/\/localhost:1000/my-google-drive?url="+url)
-      //   .then(e => "done!")
-      //   .then(console.log) 
-    // }, 1000);
+    ENV.dev && require('./test/drive-api.js')
   });
 
 app.use((req, res, next) => {
   try {
     var md = "./x" + req.path.toUpperCase().replace(/\\$|\/$|$/, "/index.js")
-    _require(md)(req, res, next)
+    _require(md)(req, res, next);
   } catch (e) {
     console.error(e);
     next()
@@ -42,5 +28,20 @@ app.use((req, res) => {
   })
 });
 
-
-global.express = express;
+TEST=false;
+globalThis.express = express;
+globalThis._require=_require;
+_require.module = {};
+function _require(md, key) {
+  const _md = md.toLowerCase();
+  if (!_require.module.hasOwnProperty(_md)) {
+    if(key){
+      const res= _require.module[_md] = require(md);
+      _require.module[_md]=res[key]
+      return res
+    }else{
+     return  _require.module[_md] = require(md);
+    }
+  }
+  return _require.module[_md];
+}

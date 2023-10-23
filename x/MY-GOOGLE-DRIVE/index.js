@@ -11,14 +11,10 @@ const { OAuth2: OAuth2Client } = google.auth;
 setToken(token);
 
 
+const oauth2Client = new OAuth2Client(token.client_id, token.client_secret)
+oauth2Client.setCredentials(token);
+const service = google.drive({ version: 'v3', auth: oauth2Client });
 
-
-const auth = new GoogleAuth({
-  scopes: 'https://www.googleapis.com/auth/drive',
-  credentials: token
-});
-
-const service = google.drive({ version: 'v3', auth });
 const defaultFolderName = "my plan"
 const parentFolderId = "root"
 const rootFolderId = new Promise(async (r, j) => {
@@ -98,24 +94,24 @@ async function findFile({ name, _service }) {
 
   return file;
 }
-async function listFiles({_service}) {
+async function listFiles({ _service }) {
   const res = await _service.files.list({
-    q: `'${await rootFolderId}' in parents`, // Replace with the folder ID you want to list files from
-    fields:"files(id, name, mimeType, size)"
+    q: `'${await rootFolderId}' in parents and trashed = false`, // Replace with the folder ID you want to list files from
+    fields: "files(id, name, mimeType, size)"
   });
 
   const files = res.data.files;
   return files;
 }
-async function listFilesOnly({_service}) {
+async function listFilesOnly({ _service }) {
   const res = await _service.files.list({
-    q: `'${await rootFolderId}' in parents and mimeType != 'application/vnd.google-apps.folder'`, // Replace with the folder ID you want to list files from
-    fields:"files(id, name, mimeType, size)"
+    q: `'${await rootFolderId}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'`, // Replace with the folder ID you want to list files from
+    fields: "files(id, name, mimeType, size)"
   });
   const files = res.data.files;
   return files;
 }
-async function getFileLink(fileId, {_service}) {
+async function getFileLink(fileId, { _service }) {
   const res = await _service.files.get({
     fileId,
     fields: "webViewLink"
@@ -123,6 +119,42 @@ async function getFileLink(fileId, {_service}) {
 
   const link = res.data.webViewLink;
   return link;
+}
+async function deleteFile(fileId, { _service }) {
+  try {
+    await _service.files.delete({
+      fileId: fileId, // ID of the file you want to delete
+    });
+    return true
+  } catch (error) {
+    return false;
+  }
+}
+async function downloadFile(fileId, { _service, stream }) {
+  const response = await _service.files.get({
+    fileId: fileId, // ID of the file you want to download
+    alt: 'media', // Use 'media' to get the file content
+  }, { responseType: 'stream' });
+
+  return response;
+}
+async function getPortionOfFile(fileId, {startByte, endByte, _service:{context:{_options:{auth}}}}) {
+    const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+    const headers = {
+      'Range': `bytes=${startByte}-${endByte}`,
+      'Authorization': `Bearer ${(await auth.getAccessToken()).token}`, // Replace with your access token
+    };
+
+    const response = await fetch(url, { method: 'GET', headers });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to download the portion of the file. Status: ${response.status}`);
+    }
+
+    return response;
+}
+async function setPortionOfFile(fileId, {startByte, endByte, _service:{context:{_options:{auth}}}}) {
+  return null
 }
 async function uploadBasic({ name, type }) {
   if (!type) type = mimeType.lookup(name) || "application/octet-stream";
@@ -222,9 +254,9 @@ module.exports = async (req, res) => {
         const iv = /[^(a-z)(0-9)_\-.@]/ig;
 
         if (!name) {
-          name = (url.match(/[^\\\/]+[\?$]/) || [`Unknown - ${Date.now()}`])[0].replace(/\?([^]?)+$/,"").replace(iv, "_ ");
+          name = (url.match(/[^\\\/]+$/) || [`Unknown - ${Date.now()}`])[0].replace(/\?([^]?)+$/, "").replace(iv, "_ ");
         }
-     
+
         let ext = (name.match(/[^\\\/.]+$/) || [""])[0].toLowerCase();
         ext = mimeType.types[ext]
         if (!ext) {
@@ -240,7 +272,7 @@ module.exports = async (req, res) => {
             if (!bytesRead) {
               msg.type = "updating"
               bytesRead = progressEvent;
-            }else{
+            } else {
               msg.type = "uploading"
             }
 
@@ -257,7 +289,7 @@ module.exports = async (req, res) => {
           res.status(206);
           res.end();
         } else {
-          file.data.link=await getFileLink(file.data.id,{_service})
+          file.data.link = await getFileLink(file.data.id, { _service })
           msg.type = 'complete'
           msg.msg = file.data
           res.end();
@@ -274,11 +306,11 @@ module.exports = async (req, res) => {
 
     })
 
-    server.on("error", (error) => err(error+""))
+    server.on("error", (error) => err(error + ""))
 
     server.end();
   } catch (error) {
-    err(error+"");
+    err(error + "");
   }
 }
 
@@ -289,7 +321,12 @@ function setToken(token) {
   if (!token.type) token.type = "authorized_user";
 }
 
-(async ()=>{
-// d= await findFile({_service:service,name:"vid.mp4"}); 
-// console.log(d);
+(async () => {
+  // Request a new access token.
+  // const accessToken = await oauth2Client.getAccessToken();
+  // id="1hjqHSKm9t-ajGXKCo6OvyNFjk_xOJzLd";
+  // list = await getPortionOfFile(id,{startByte:0,endByte:5,_service:service});
+  // t=await list.text();
+  // t=await listFilesOnly({_service:service})
+  // console.log(t,process.env); 
 })(); 

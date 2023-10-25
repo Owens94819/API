@@ -29,6 +29,7 @@ app.use((req, res) => {
 });
  
 TEST = false;
+globalThis.ENV = ENV;
 globalThis.express = express;
 globalThis._require = _require; 
 _require.module = {};

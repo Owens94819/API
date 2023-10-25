@@ -1,7 +1,5 @@
 
-
-const token = require('./assets/token.json');
-const credentials = require('./assets/credentials.json');
+const {token,credentials} = JSON.parse(ENV["google-drive"]);
 const fs = require('fs');
 const proto = { https: require('https'), http: require('http') };
 const { GoogleAuth } = require('google-auth-library');
@@ -318,7 +316,7 @@ async function Response(req, res) {
 
 function setToken(token) {
   token.client_id = credentials.web.client_id
-  token.client_secret
+  token.client_secret = credentials.web.client_secret
   if (!token.type) token.type = "authorized_user";
 }
 

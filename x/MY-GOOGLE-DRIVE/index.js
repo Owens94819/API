@@ -1,5 +1,5 @@
 
-const {token,credentials} = JSON.parse(ENV["google-drive"]);
+const {token,credentials} = JSON.parse(ENV["google-drive"]||ENV["google_drive"]);
 const fs = require('fs');
 const proto = { https: require('https'), http: require('http') };
 const { GoogleAuth } = require('google-auth-library');

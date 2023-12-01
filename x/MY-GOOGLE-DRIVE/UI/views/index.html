@@ -29,7 +29,7 @@
         <details>
             <summary>Advance</summary>
             <div>
-                <h3>Do you what a full progressive log? (optional)</h3>
+                <h3>Do you want a full progressive log? (optional)</h3>
                 <input type="text" name="prog" placeholder="show progress (yes/no)" value="no">
             </div>
             <div>
@@ -73,7 +73,6 @@
             links.innerHTML += `
                 <a href="${download}" id="${id}">${name}</a> <br>    
                 `
-                document.querySelector('input[type="url"]').value=""
         }
         for (const key in localStorage) {
             links.hidden = false
@@ -131,6 +130,7 @@
                 url += `${name || "unknown"}=${encodeURIComponent(value || "")}&`
             }
             url += "t=" + Date.now();
+            req.querySelector('input[name="url"]').value=""
 
             const stream = new EventSource(url)
             stream.onmessage = ({ data }) => {

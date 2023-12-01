@@ -6,6 +6,7 @@ const { GoogleAuth } = require('google-auth-library');
 const { google } = require('googleapis');
 const mimeType = require('mime-types');
 const { OAuth2: OAuth2Client } = google.auth;
+const URL = require('url');
 setToken(token);
 
 
@@ -42,7 +43,7 @@ const rootFolderId = new Promise(async (r, j) => {
 });
 
 
-async function createFile({ stream, name, type, _service }, cb) {
+async function createFile({ stream, name, type, _service,obj }, cb) {
 
   const requestBody = {
     name: name,
@@ -77,7 +78,7 @@ async function updateFile(fileId, { stream, type, _service }, cb) {
 
   return file;
 }
-async function findFile({ name, _service }) {
+async function findFileByName({ name, _service }) {
   const response = await _service.files.list({
     q: `'${await rootFolderId}' in parents and name = '${name}'`,
     fields: "files(id, size, name, mimeType)"
@@ -91,6 +92,18 @@ async function findFile({ name, _service }) {
   }
 
   return file;
+}
+async function findFileById({ id, _service }) {
+  const response = await _service.files.get({
+    fileId:id,
+    fields: "id, size, name, mimeType"
+  });
+  const file = response.data;
+  if (file) {
+    return file;
+  } else {
+    return false;
+  }
 }
 async function listFiles({ _service }) {
   const res = await _service.files.list({
@@ -138,16 +151,32 @@ async function downloadFile(fileId, { _service, stream }) {
 }
 async function getPortionOfFile(fileId, { startByte, endByte, _service: { context: { _options: { auth } } } }) {
   let fields="";
-  const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&fields=${fields}`;
+  let url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&fields=${fields}`;
   const headers = {
     'Range': `bytes=${startByte}-${endByte}`,
     'Authorization': `Bearer ${(await auth.getAccessToken()).token}`, // Replace with your access token
   };
 
-  const response = await fetch(url, { method: 'GET', headers });
-
-  if (!response.ok) {
-    throw new Error(`Failed to download the portion of the file. Status: ${response.status}`);
+let code;
+  const response =  await new Promise((resolve, reject) => {
+    url= URL.parse(url)
+    proto.https.get({
+      host:url.host,
+      hostname:url.hostname,
+      pathname:url.pathname,
+      path:url.path,
+      headers
+    },function (res) {
+      code=res.statusCode
+      resolve(res)
+    }).on("error",function (err) {
+      console.error(err)
+      resolve()
+    })
+   })
+  //  const response = await fetch(url, { method: 'GET', headers });
+  if (!code||code>400) {
+    throw new Error(`Failed to download the portion of the file. Status: ${code}`);
   }
 
   return response;
@@ -155,11 +184,11 @@ async function getPortionOfFile(fileId, { startByte, endByte, _service: { contex
 async function setPortionOfFile(fileId, { startByte, endByte, _service: { context: { _options: { auth } } } }) {
   return null
 }
-async function uploadBasic({ name, type }) {
+async function uploadBasic({ name, type,obj }) {
   if (!type) type = mimeType.lookup(name) || "application/octet-stream";
 
   try {
-    const fileId = (await findFile(...arguments))?.id;
+    const fileId = (await findFileByName(...arguments))?.id;
     let file;
     // console.log(fileId);
     if (fileId) {
@@ -265,8 +294,8 @@ async function Response(req, res) {
           }
         }
 
-        const file = await uploadBasic({ stream, name, type, _service }, {
-          onUploadProgress: (progressEvent) => {
+        const file = await uploadBasic({ stream, name, type, _service,obj:msg }, {
+          onUploadProgress: (q.prog||"").includes("y")?(progressEvent) => {
             let { bytesRead } = progressEvent;
             if (!bytesRead) {
               msg.type = "updating"
@@ -276,10 +305,11 @@ async function Response(req, res) {
             }
 
             msg.msg = bytesRead
+            msg._id = bytesRead
 
             console.log(`Uploaded ${bytesRead} bytes`);
             res.write();
-          },
+          }:null,
         }).catch(err => err + "");
 
         if (typeof file === 'string') {
@@ -328,7 +358,10 @@ if (TEST) {
      listFiles,
       getPortionOfFile,
       oauth2Client,
-      service
+      service,
+      findFileById,
+      findFileByName,
+      deleteFile
   }
 } else {
   module.exports = Response

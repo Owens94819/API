@@ -73,6 +73,7 @@
             links.innerHTML += `
                 <a href="${download}" id="${id}">${name}</a> <br>    
                 `
+                document.querySelector('input[type="url"]').value=""
         }
         for (const key in localStorage) {
             links.hidden = false

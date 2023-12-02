@@ -1,5 +1,5 @@
 
-const {token,credentials} = JSON.parse(ENV["google-drive"]||ENV["google_drive"]);
+const { token, credentials } = JSON.parse(ENV["google-drive"] || ENV["google_drive"]);
 const fs = require('fs');
 const proto = { https: require('https'), http: require('http') };
 const { GoogleAuth } = require('google-auth-library');
@@ -47,7 +47,7 @@ const rootFolderId = new Promise(async (r, j) => {
  * @fields id, name, mimeType, size, createdTime
  * @orderBy "name desc" "name asc"
  */
-async function createFile({ stream, name, type, _service,obj }, cb) {
+async function createFile({ stream, name, type, _service, obj }, cb) {
 
   const requestBody = {
     name: name,
@@ -60,8 +60,8 @@ async function createFile({ stream, name, type, _service,obj }, cb) {
     body: stream,
     resumable: true
   };
-  cb.onUploadProgress&&cb.onUploadProgress('updating')
-  if(!q.prog)cb=void 0;
+  cb.onUploadProgress && cb.onUploadProgress('creating')
+  if (!q.prog) cb = void 0;
   const file = await _service.files.create({
     requestBody,
     media: media,
@@ -75,8 +75,8 @@ async function updateFile(fileId, { stream, type, _service }, cb) {
     body: stream,
     resumable: true
   };
-  cb.onUploadProgress&&cb.onUploadProgress('updating')
-  if(!q.prog)cb=void 0;
+  cb.onUploadProgress && cb.onUploadProgress('updating')
+  if (!q.prog) cb = void 0;
   const file = await _service.files.update({
     fileId,
     media: media,
@@ -101,7 +101,7 @@ async function findFileByName({ name, _service }) {
 }
 async function findFileById({ id, _service }) {
   const response = await _service.files.get({
-    fileId:id,
+    fileId: id,
     fields: "id, size, name, mimeType"
   });
   const file = response.data;
@@ -111,7 +111,7 @@ async function findFileById({ id, _service }) {
     return false;
   }
 }
-async function listFiles({ _service,orderBy="name" }) {
+async function listFiles({ _service, orderBy = "name" }) {
   const res = await _service.files.list({
     orderBy,
     q: `'${await rootFolderId}' in parents and trashed = false`, // Replace with the folder ID you want to list files from
@@ -121,7 +121,7 @@ async function listFiles({ _service,orderBy="name" }) {
   const files = res.data.files;
   return files;
 }
-async function listFilesOnly({ _service,orderBy="name" }) {
+async function listFilesOnly({ _service, orderBy = "name" }) {
   const res = await _service.files.list({
     orderBy,
     q: `'${await rootFolderId}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'`, // Replace with the folder ID you want to list files from
@@ -158,36 +158,36 @@ async function downloadFile(fileId, { _service, stream }) {
   return response;
 }
 async function getPortionOfFile(fileId, { startByte, endByte, _service: { context: { _options: { auth } } } }) {
-  let fields="";
+  let fields = "";
   let url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&fields=${fields}`;
   const headers = {
     'Range': `bytes=${startByte}-${endByte}`,
     'Authorization': `Bearer ${(await auth.getAccessToken()).token}`, // Replace with your access token
   };
 
-let code;
-  const response =  await new Promise((resolve, reject) => {
-    url= URL.parse(url)
+  let code;
+  const response = await new Promise((resolve, reject) => {
+    url = URL.parse(url)
     // const agent=proto.https.Agent({keepAlive:true,maxSockets:1,maxFreeSockets:1})
     // agent.defaultSocket={
     //   highWaterMark:4096
     // }
     proto.https.get({
-      host:url.host,
-      hostname:url.hostname,
-      pathname:url.pathname,
-      path:url.path,
+      host: url.host,
+      hostname: url.hostname,
+      pathname: url.pathname,
+      path: url.path,
       headers
-    },function (res) {
-      code=res.statusCode
+    }, function (res) {
+      code = res.statusCode
       resolve(res)
-    }).on("error",function (err) {
+    }).on("error", function (err) {
       console.error(err)
       resolve()
     })
-   })
+  })
   //  const response = await fetch(url, { method: 'GET', headers });
-  if (!code||code>400) {
+  if (!code || code > 400) {
     throw new Error(`Failed to download the portion of the file. Status: ${code}`);
   }
 
@@ -196,7 +196,7 @@ let code;
 async function setPortionOfFile(fileId, { startByte, endByte, _service: { context: { _options: { auth } } } }) {
   return null
 }
-async function uploadBasic({ name, type,obj }) {
+async function uploadBasic({ name, type, obj }) {
   if (!type) type = mimeType.lookup(name) || "application/octet-stream";
 
   try {
@@ -305,8 +305,8 @@ async function Response(req, res) {
             name += "." + ext;
           }
         }
-q.prog=(q.prog||"").includes("y")
-        const file = await uploadBasic({ stream, name, type, _service,obj:msg }, {
+        q.prog = (q.prog || "").includes("y")
+        const file = await uploadBasic({ stream, name, type, _service, obj: msg }, {
           onUploadProgress: (progressEvent) => {
             let { bytesRead } = progressEvent;
             if (!bytesRead) {
@@ -367,13 +367,13 @@ if (TEST) {
   module.exports = {
     Response,
     listFilesOnly,
-     listFiles,
-      getPortionOfFile,
-      oauth2Client,
-      service,
-      findFileById,
-      findFileByName,
-      deleteFile
+    listFiles,
+    getPortionOfFile,
+    oauth2Client,
+    service,
+    findFileById,
+    findFileByName,
+    deleteFile
   }
 } else {
   module.exports = Response

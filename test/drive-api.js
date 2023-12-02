@@ -1,4 +1,6 @@
 const { log } = require('console');
+const chalk = require('chalk');
+const keypress = require('keypress');
 const prompt = require('prompt');
 // const logUpdate = require('log-update');
 (async () => {
@@ -134,7 +136,7 @@ const prompt = require('prompt');
       if(_exist){
         const q="file exist, want to conti..(y/n)"
         const val=(await prompt.get(q))[q]
-        if(val.trim().toLowerCase()!=="y") return log("terminated"),resolve();
+        if(val.trim().toLowerCase()!=="y") return logUpdate("terminated"),resolve();
       }else{
         fs.writeFile(_name,Buffer.alloc(file.size),err=>{
           if(err) log(err)
@@ -145,7 +147,7 @@ const prompt = require('prompt');
     }
 
     if (start >= file.size) {
-      log(`done: ${Size(start)}`)
+      logUpdate(`done: ${Size(start)}`)
       byteSize("D")
       setFile()
       resolve()
@@ -196,12 +198,50 @@ const prompt = require('prompt');
     const q="enter query"
     prompt.get(q,async (err,val)=>{
     if (!err) {
-      await eval(val[q])
+      try {
+        await eval(val[q])
+      } catch (error) {}
     p();
     }
     })
+    
+  }
+  const app_data_path=".bin/app-data.json";
+  let app_data;
+  if(!fs.existsSync(app_data_path)){
+    app_data= await listFilesOnly(arg)
+    fs.writeFileSync(app_data_path,JSON.stringify(app_data))
+  }else{
+    app_data=fs.readFileSync(app_data_path)
+    app_data=JSON.parse(app_data)
   }
   p()
+
+  return;
+  keypress(process.stdin)
+  let i=0
+  let cur;
+  let busy=false
+  app_data.forEach((val,key)=>{
+    print(`${chalk.blue(key+")")} ${(val.name)}\n`)
+  })
+  // console.log(``)
+// console.log("0000");
+// console.clear("0000");
+  process.stdin.on("keypress",(ch)=>{
+    if(!arguments[1]) return;
+    let {name,ctrl}=arguments[1]
+    if(busy) return;
+    if(ctrl&&name==="c") return process.exit();
+    print(name)
+    // name=Number(name)
+    // const item=app_data[name]
+    // if(!item) return;
+    // print(item)
+  })
+  process.stdin.setRawMode(true)
+  process.stdin.resume()
+
   // await download('16WV55jaOmEp8jA_O9snG4F3iFPpiY2_d')
   // fu
   // log("done!")
@@ -214,6 +254,6 @@ const prompt = require('prompt');
   //   d=await deleteFile("1efxX9c--8mNlNcyURPTpWoHYi8ic3Ia1",{_service:service})
   // logUpdate(d)
   // });
-  // file= await listFilesOnly({_service:service})
+  // file= await listFilesOnly(arg).then(log)
   // log(file)
 })();

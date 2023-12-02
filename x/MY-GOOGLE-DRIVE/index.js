@@ -37,12 +37,16 @@ const rootFolderId = new Promise(async (r, j) => {
       r(newFolder.data.id)
     }
   } catch (err) {
-    console.error(err);
+    // console.error(err);
     r(parentFolderId)
   }
 });
 
-
+/**
+ * 
+ * @fields id, name, mimeType, size, createdTime
+ * @orderBy "name desc" "name asc"
+ */
 async function createFile({ stream, name, type, _service,obj }, cb) {
 
   const requestBody = {
@@ -56,7 +60,8 @@ async function createFile({ stream, name, type, _service,obj }, cb) {
     body: stream,
     resumable: true
   };
-
+  cb.onUploadProgress&&cb.onUploadProgress('updating')
+  if(!q.prog)cb=void 0;
   const file = await _service.files.create({
     requestBody,
     media: media,
@@ -70,7 +75,8 @@ async function updateFile(fileId, { stream, type, _service }, cb) {
     body: stream,
     resumable: true
   };
-  cb.onUploadProgress('updating')
+  cb.onUploadProgress&&cb.onUploadProgress('updating')
+  if(!q.prog)cb=void 0;
   const file = await _service.files.update({
     fileId,
     media: media,
@@ -105,8 +111,9 @@ async function findFileById({ id, _service }) {
     return false;
   }
 }
-async function listFiles({ _service }) {
+async function listFiles({ _service,orderBy="name" }) {
   const res = await _service.files.list({
+    orderBy,
     q: `'${await rootFolderId}' in parents and trashed = false`, // Replace with the folder ID you want to list files from
     fields: "files(id, name, mimeType, size)"
   });
@@ -114,8 +121,9 @@ async function listFiles({ _service }) {
   const files = res.data.files;
   return files;
 }
-async function listFilesOnly({ _service }) {
+async function listFilesOnly({ _service,orderBy="name" }) {
   const res = await _service.files.list({
+    orderBy,
     q: `'${await rootFolderId}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'`, // Replace with the folder ID you want to list files from
     fields: "files(id, name, mimeType, size)"
   });
@@ -160,6 +168,10 @@ async function getPortionOfFile(fileId, { startByte, endByte, _service: { contex
 let code;
   const response =  await new Promise((resolve, reject) => {
     url= URL.parse(url)
+    // const agent=proto.https.Agent({keepAlive:true,maxSockets:1,maxFreeSockets:1})
+    // agent.defaultSocket={
+    //   highWaterMark:4096
+    // }
     proto.https.get({
       host:url.host,
       hostname:url.hostname,
@@ -293,9 +305,9 @@ async function Response(req, res) {
             name += "." + ext;
           }
         }
-
+q.prog=(q.prog||"").includes("y")
         const file = await uploadBasic({ stream, name, type, _service,obj:msg }, {
-          onUploadProgress: (q.prog||"").includes("y")?(progressEvent) => {
+          onUploadProgress: (progressEvent) => {
             let { bytesRead } = progressEvent;
             if (!bytesRead) {
               msg.type = "updating"
@@ -309,7 +321,7 @@ async function Response(req, res) {
 
             console.log(`Uploaded ${bytesRead} bytes`);
             res.write();
-          }:null,
+          }
         }).catch(err => err + "");
 
         if (typeof file === 'string') {

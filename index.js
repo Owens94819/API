@@ -53,28 +53,63 @@ function _require(md, key) {
 }
 
 // ENV.dev=""
-// prompt.start({noHandleSIGINT: true});
-// prompt.message="-"
-// //#region 
-// process.on('SIGIO', function() {
-//   console.log("up");
-// });
-// process.on('SIGINFO', function() {
-//   console.log("up");
-// });
-// prompt.on("up",e=>{
-//   log("up--")
-// })
-// //#endregion
-// prompt.get('l')
-// const print = require('./xlog.js');
+// const fs = require('fs');
+// process.stdout.write('\n')
+// var stdout= process.stdout,
+// y=stdout.columns;
+// // stdout.cursorTo(0,y)
+// stdout.write("start:"+y)
+// log("\nooooo")
+// setTimeout(() => {
+// //   stdout.cursorTo(0,11)
+// //   s=stdout.getWindowSize();
+// r=stdout.moveCursor(0,-1)
+// stdout.cursorTo(0,0)
+// stdout.
+//   stdout.cursorTo(0,10)
+// stdout.write("[here]2\npp\n\n\nkkk\njj")
+// stdout.cursorTo(0,10)
+// stdout.write("here")
+// // buf.write("--")
+// // stdout.write("\n2 ppp:"+y)
+// // stdout.write("\n3 ppp:"+y)
+// // stdout.cursorTo(0,11)
+// // stdout.write("ppp:"+y)
+// // log(stdout.columns)
+// }, 1000);
+// // var Jetty = require("jetty");
+// // var jetty = new Jetty(process.stdout);
+// // // Clear the screen
+// // // jetty.clear();
+// // jetty.text("ppp").moveTo([0,0])
 
-// print("1")
-// print("2")
-// print(1,"3")
-// print("4")
-// i=0
-// setInterval(()=>{
-// print(1,i++)
-// },1000)
-// set
+// // setTimeout(() => {
+// //   process.stdout.cursorTo(-1)
+// //   process.stdout.clearLine(1)
+// // process.stdout.write('\nooo')
+// // }, 100000);
+// // prompt.start({noHandleSIGINT: true});
+// // prompt.message="-"
+// // //#region 
+// // process.on('SIGIO', function() {
+// //   console.log("up");
+// // });
+// // process.on('SIGINFO', function() {
+// //   console.log("up");
+// // });
+// // prompt.on("up",e=>{
+// //   log("up--")
+// // })
+// // //#endregion
+// // prompt.get('l')
+// // const print = require('./xlog.js');
+
+// // print("1")
+// // print("2")
+// // print(1,"3")
+// // print("4")
+// // i=0
+// // setInterval(()=>{
+// // print(1,i++)
+// // },1000)
+// // set

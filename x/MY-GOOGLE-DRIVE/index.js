@@ -10,6 +10,7 @@ const URL = require('url');
 setToken(token);
 
 
+
 const oauth2Client = new OAuth2Client(token.client_id, token.client_secret)
 oauth2Client.setCredentials(token);
 const service = google.drive({ version: 'v3', auth: oauth2Client });
@@ -44,8 +45,13 @@ const rootFolderId = new Promise(async (r, j) => {
 
 /**
  * 
- * @fields id, name, mimeType, size, createdTime
+ * @fields id, name, mimeType, size, createdTime,modifiedTime, trashed
+ * @pageToken : nextPageToken
  * @orderBy "name desc" "name asc"
+ * @pageSize
+ * @fields: "files(modifiedTime), nextPageToken, incompleteSearch",
+ * createdTime > '2021-01-01T00:00:00'
+ * siz>2, >=, !=, and, or
  */
 async function createFile({ stream, name, type, _service, obj }, cb) {
 
@@ -110,6 +116,38 @@ async function findFileById({ id, _service }) {
   } else {
     return false;
   }
+}
+async function getLastFile({ _service, orderBy = "modifiedTime desc" }) {
+  const res = await _service.files.list({
+    orderBy,
+    pageSize:70,
+    q: `'${await rootFolderId}' in parents`,
+    fields: "files(modifiedTime)",
+  });
+  return  res.data.files[0];
+}
+async function matchLastFile(query,{ _service, orderBy = "name" }) {
+  // query=query.trim();
+  // const _q=""
+  // query.match(/^\*/)&&(_s="startWith")&&query.substring(1)
+  // query.match(/\*$/)&&query.substring(1)
+  const res = await _service.files.list({
+    orderBy,
+    pageSize:1,
+    q: `'${await rootFolderId}' in parents and ${query}`,
+    fields: "files(modifiedTime)",
+  });
+  return  res.data.files[0];
+}
+async function _listFilesOnly({ _service, orderBy = "name" }) {
+  const res = await _service.files.list({
+    orderBy,
+    q: `'${await rootFolderId}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder' and createdTime >= '2023-11-30T18:54:16.296Z'`, // Replace with the folder ID you want to list files from
+    fields: "files(id, name, mimeType, size, createdTime, modifiedTime)"
+  });
+
+  const files = res.data.files;
+  return files;
 }
 async function listFiles({ _service, orderBy = "name" }) {
   const res = await _service.files.list({
@@ -373,6 +411,8 @@ if (TEST) {
     service,
     findFileById,
     findFileByName,
+    _listFilesOnly,
+    getLastFile,
     deleteFile
   }
 } else {

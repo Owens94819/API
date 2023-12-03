@@ -43,6 +43,8 @@ const rootFolderId = new Promise(async (r, j) => {
   }
 });
 
+const exp={service,oauth2Client};
+
 /**
  * 
  * @fields id, name, mimeType, size, createdTime,modifiedTime, trashed
@@ -53,7 +55,7 @@ const rootFolderId = new Promise(async (r, j) => {
  * createdTime > '2021-01-01T00:00:00'
  * siz>2, >=, !=, and, or
  */
-async function createFile({ stream, name, type, _service, obj }, cb) {
+exp.createFile=async function ({ stream, name, type, _service, obj }, cb) {
 
   const requestBody = {
     name: name,
@@ -75,7 +77,7 @@ async function createFile({ stream, name, type, _service, obj }, cb) {
 
   return file;
 }
-async function updateFile(fileId, { stream, type, _service }, cb) {
+exp.updateFile=async function (fileId, { stream, type, _service }, cb) {
   const media = {
     mimeType: type,
     body: stream,
@@ -90,7 +92,7 @@ async function updateFile(fileId, { stream, type, _service }, cb) {
 
   return file;
 }
-async function findFileByName({ name, _service }) {
+exp.findFileByName=async function ({ name, _service }) {
   const response = await _service.files.list({
     q: `'${await rootFolderId}' in parents and name = '${name}'`,
     fields: "files(id, size, name, mimeType)"
@@ -105,7 +107,7 @@ async function findFileByName({ name, _service }) {
 
   return file;
 }
-async function findFileById({ id, _service }) {
+exp.findFileById=async function ({ id, _service }) {
   const response = await _service.files.get({
     fileId: id,
     fields: "id, size, name, mimeType"
@@ -117,29 +119,29 @@ async function findFileById({ id, _service }) {
     return false;
   }
 }
-async function getLastFile({ _service, orderBy = "modifiedTime desc" }) {
+exp.getLastFile=async function ({ _service, orderBy = "modifiedTime desc" }) {
   const res = await _service.files.list({
     orderBy,
-    pageSize:70,
+    pageSize:1,
     q: `'${await rootFolderId}' in parents`,
     fields: "files(modifiedTime)",
   });
   return  res.data.files[0];
 }
-async function matchLastFile(query,{ _service, orderBy = "name" }) {
+exp.matchLastFile=async function (query,{ _service, orderBy = "name" }) {
   // query=query.trim();
   // const _q=""
   // query.match(/^\*/)&&(_s="startWith")&&query.substring(1)
   // query.match(/\*$/)&&query.substring(1)
   const res = await _service.files.list({
     orderBy,
-    pageSize:1,
-    q: `'${await rootFolderId}' in parents and ${query}`,
-    fields: "files(modifiedTime)",
+    // pageSize:1,
+    q: `'${await rootFolderId}' in parents and name contains '${query}'`,
+    fields: "files(id, name, modifiedTime, size)",
   });
-  return  res.data.files[0];
+  return  res.data.files;
 }
-async function _listFilesOnly({ _service, orderBy = "name" }) {
+exp._listFilesOnly=async function ({ _service, orderBy = "name" }) {
   const res = await _service.files.list({
     orderBy,
     q: `'${await rootFolderId}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder' and createdTime >= '2023-11-30T18:54:16.296Z'`, // Replace with the folder ID you want to list files from
@@ -149,7 +151,7 @@ async function _listFilesOnly({ _service, orderBy = "name" }) {
   const files = res.data.files;
   return files;
 }
-async function listFiles({ _service, orderBy = "name" }) {
+exp.listFiles=async function ({ _service, orderBy = "name" }) {
   const res = await _service.files.list({
     orderBy,
     q: `'${await rootFolderId}' in parents and trashed = false`, // Replace with the folder ID you want to list files from
@@ -159,16 +161,16 @@ async function listFiles({ _service, orderBy = "name" }) {
   const files = res.data.files;
   return files;
 }
-async function listFilesOnly({ _service, orderBy = "name" }) {
+exp.listFilesOnly=async function ({ _service, orderBy = "name" }) {
   const res = await _service.files.list({
     orderBy,
     q: `'${await rootFolderId}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'`, // Replace with the folder ID you want to list files from
-    fields: "files(id, name, mimeType, size)"
+    fields: "files(id, name, mimeType, size, modifiedTime)"
   });
   const files = res.data.files;
   return files;
 }
-async function getFileLink(fileId, { _service }) {
+exp.getFileLink=async function (fileId, { _service }) {
   const res = await _service.files.get({
     fileId,
     fields: "webViewLink"
@@ -177,7 +179,7 @@ async function getFileLink(fileId, { _service }) {
   const link = res.data.webViewLink;
   return link;
 }
-async function deleteFile(fileId, { _service }) {
+exp.deleteFile=async function (fileId, { _service }) {
   try {
     await _service.files.delete({
       fileId: fileId, // ID of the file you want to delete
@@ -187,7 +189,7 @@ async function deleteFile(fileId, { _service }) {
     return false;
   }
 }
-async function downloadFile(fileId, { _service, stream }) {
+exp.downloadFile=async function (fileId, { _service, stream }) {
   const response = await _service.files.get({
     fileId: fileId, // ID of the file you want to download
     alt: 'media', // Use 'media' to get the file content
@@ -195,7 +197,7 @@ async function downloadFile(fileId, { _service, stream }) {
 
   return response;
 }
-async function getPortionOfFile(fileId, { startByte, endByte, _service: { context: { _options: { auth } } } }) {
+exp.getPortionOfFile=async function (fileId, { startByte, endByte, _service: { context: { _options: { auth } } } }) {
   let fields = "";
   let url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&fields=${fields}`;
   const headers = {
@@ -231,10 +233,10 @@ async function getPortionOfFile(fileId, { startByte, endByte, _service: { contex
 
   return response;
 }
-async function setPortionOfFile(fileId, { startByte, endByte, _service: { context: { _options: { auth } } } }) {
+exp.setPortionOfFile=async function (fileId, { startByte, endByte, _service: { context: { _options: { auth } } } }) {
   return null
 }
-async function uploadBasic({ name, type, obj }) {
+exp.uploadBasic=async function ({ name, type, obj }) {
   if (!type) type = mimeType.lookup(name) || "application/octet-stream";
 
   try {
@@ -253,7 +255,7 @@ async function uploadBasic({ name, type, obj }) {
   }
 }
 
-async function Response(req, res) {
+exp.Response=async function (req, res) {
   const msg = {
     msg: null,
     type: null
@@ -402,19 +404,7 @@ function setToken(token) {
 
 
 if (TEST) {
-  module.exports = {
-    Response,
-    listFilesOnly,
-    listFiles,
-    getPortionOfFile,
-    oauth2Client,
-    service,
-    findFileById,
-    findFileByName,
-    _listFilesOnly,
-    getLastFile,
-    deleteFile
-  }
+  module.exports = exp
 } else {
   module.exports = Response
 }

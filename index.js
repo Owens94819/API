@@ -1,4 +1,7 @@
+
 const { log } = require('console');
+const { WriteStream } = require('fs');
+const { Stream, Duplex } = require('stream');
 print = require('./xlog.js');
 
 
@@ -52,7 +55,23 @@ function _require(md, key) {
   return _require.module[_md];
 }
 
+
 // ENV.dev=""
+// buf=new Stream()
+// d=new Duplex({
+//   write:e=>{
+//     log(e+"")
+//   },
+//   read:()=>{
+//     log("readind")
+//   }
+// })
+// // log(d)
+// process.stdout.pipe(d)
+// d.write("ppp")
+// log(99)
+// d=[1,2]
+
 // const fs = require('fs');
 // process.stdout.write('\n')
 // var stdout= process.stdout,

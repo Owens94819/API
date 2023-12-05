@@ -1,15 +1,15 @@
 const logs = []
-var key=()=>{
+var key = () => {
     return `x-${Math.random()}-${logs.length}-${Date.now()}`
 };
 const map = {}
 let logUpdate;
-module.exports = async function (id,msg) {
-    if(!logUpdate){
-        logUpdate=(await import('log-update')).default
-    }
-    if (arguments.length<=1) {
-        msg=id;
+let hold = false;
+module.exports = print
+
+async function print(id, msg) {
+    if (arguments.length <= 1) {
+        msg = id;
         id = key()
     }
     if (map.hasOwnProperty(id)) {
@@ -21,6 +21,26 @@ module.exports = async function (id,msg) {
     }
     // console.clear()
     // console.log(logs);
-    logUpdate(logs.join("\n"))
+    if (!hold) {
+        await print.drop();
+    }
     return id;
+}
+
+print.add = function () {
+    hold = true;
+    print(...arguments)
+    hold = false;
+}
+print.drop = async function () {
+    if (!logUpdate) {
+        logUpdate = (await import('log-update')).default
+    }
+    var log = ""
+    logs.map(val => {
+        if (typeof val === "string" && !val.trim()) return;
+        log += val + "\n"
+    })
+    logUpdate(log)
+    log = void 0;
 }

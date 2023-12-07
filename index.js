@@ -4,7 +4,7 @@ const { WriteStream, ReadStream } = require('node:fs');
 const { Stream, Duplex, Readable } = require('node:stream');
 const net = require('node:net');
 const { EventEmitter } = require('node:events');
-print = require('./xlog.js');
+puts=print = require('./xlog.js');
 xfetch = require('./xfetch.js');
 
 
@@ -20,8 +20,13 @@ const express = require("express"),
   https = require("https"),
   server = app.listen(ENV.PORT||void 0, () => {
     var port = server.address().port;
-    console.log(`http://localhost:${port}\n-----------`);
-    ENV.dev && require('./test/drive-api.js')
+    puts(`http://localhost:${port}\n-----------`);
+    if(ENV.dev){
+     require('./test/drive-api.js')
+  }
+  });
+  app.use("/test_xfetch",(req, res, next) => {
+    res.write("jjjjjj")
   });
 
 app.use((req, res, next) => {
@@ -29,7 +34,7 @@ app.use((req, res, next) => {
     var md = "./x" + req.path.toUpperCase().replace(/\\$|\/$|$/, "/index.js")
     _require(md)(req, res, next);
   } catch (e) {
-    console.error(e);
+    puts("console",e);
     next()
   }
 });
@@ -61,26 +66,3 @@ function _require(md, key) {
 
 
 // ENV.dev=""
-
-// u="http://localhost:8080/k"
-// // u="https://github.com"
-
-// xfetch(u,{MAX_BUFFER:70_000_000,TIMEOUT:1000}).then(({stream})=>{
-//   stream.pipe(WriteStream("text")).on("close",e=>log("cl"))
-
-//   stream.on("data",buf=>{
-//     log(buf.length,stream.destroyed)
-//   })
-//   .on("end",buf=>{
-//     log("end")
-//   })
-//   .on("close",buf=>{
-//     log("close")
-//   })
-//   .on("error",buf=>{
-//     log("error")
-//   })
-//   .on("timeout",buf=>{
-//     log("timeout")
-//   })
-// })

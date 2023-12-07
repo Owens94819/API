@@ -9,6 +9,7 @@ const mimeType = require('mime-types');
 const { OAuth2: OAuth2Client } = google.auth;
 const URL = require('url');
 const xfetch = require('../../xfetch');
+const { log } = require('console');
 setToken(token);
 
 
@@ -19,33 +20,35 @@ const service = google.drive({ version: 'v3', auth: oauth2Client });
 
 const defaultFolderName = "my plan"
 const parentFolderId = "root"
-const rootFolderId = new Promise(async (r, j) => {
-  try {
-    const response = await service.files.list({
-      q: `'${parentFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and name = '${defaultFolderName}'`
-    })
-    const files = response.data.files;
-    if (files.length > 0) {
-      r(files[0].id)
-    } else {
-      console.log("creating default folder");
-      const folderMetaData = {
-        name: defaultFolderName,
-        mimeType: "application/vnd.google-apps.folder",
-        parents: [parentFolderId],
-      }
-      const newFolder = await service.files.create({
-        resource: folderMetaData
+const rootFolderId = new Promise((r, j) => {
+  async function foo() {
+    try {
+      const response = await service.files.list({
+        q: `'${parentFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and name = '${defaultFolderName}'`
       })
-      r(newFolder.data.id)
+      const files = response.data.files;
+      if (files.length > 0) {
+        r(files[0].id)
+      } else {
+        console.log("creating default folder");
+        const folderMetaData = {
+          name: defaultFolderName,
+          mimeType: "application/vnd.google-apps.folder",
+          parents: [parentFolderId],
+        }
+        const newFolder = await service.files.create({
+          resource: folderMetaData
+        })
+        r(newFolder.data.id)
+      }
+    } catch (err) {
+      foo()
     }
-  } catch (err) {
-    // console.error(err);
-    r(parentFolderId)
   }
+  foo()
 });
 
-const exp={service,oauth2Client};
+const exp = { service, oauth2Client };
 
 /**
  * 
@@ -57,7 +60,7 @@ const exp={service,oauth2Client};
  * createdTime > '2021-01-01T00:00:00'
  * siz>2, >=, !=, and, or
  */
-exp.createFile=async function ({ stream, name, type, _service, obj }, cb) {
+exp.createFile = async function ({ stream, q, name, type, _service, obj }, cb) {
 
   const requestBody = {
     name: name,
@@ -79,7 +82,7 @@ exp.createFile=async function ({ stream, name, type, _service, obj }, cb) {
 
   return file;
 }
-exp.updateFile=async function (fileId, { stream, type, _service }, cb) {
+exp.updateFile = async function (fileId, { stream, q, type, _service }, cb) {
   const media = {
     mimeType: type,
     body: stream,
@@ -94,7 +97,7 @@ exp.updateFile=async function (fileId, { stream, type, _service }, cb) {
 
   return file;
 }
-exp.findFileByName=async function ({ name, _service }) {
+exp.findFileByName = async function ({ name, _service }) {
   const response = await _service.files.list({
     q: `'${await rootFolderId}' in parents and name = '${name}'`,
     fields: "files(id, size, name, mimeType)"
@@ -109,7 +112,7 @@ exp.findFileByName=async function ({ name, _service }) {
 
   return file;
 }
-exp.findFileById=async function ({ id, _service }) {
+exp.findFileById = async function ({ id, _service }) {
   const response = await _service.files.get({
     fileId: id,
     fields: "id, size, name, mimeType"
@@ -121,16 +124,16 @@ exp.findFileById=async function ({ id, _service }) {
     return false;
   }
 }
-exp.getLastFile=async function ({ _service, orderBy = "modifiedTime desc" }) {
+exp.getLastFile = async function ({ _service, orderBy = "modifiedTime desc" }) {
   const res = await _service.files.list({
     orderBy,
-    pageSize:1,
+    pageSize: 1,
     q: `'${await rootFolderId}' in parents`,
     fields: "files(modifiedTime)",
   });
-  return  res.data.files[0];
+  return res.data.files[0];
 }
-exp.matchLastFile=async function (query,{ _service, orderBy = "name" }) {
+exp.matchLastFile = async function (query, { _service, orderBy = "name" }) {
   // query=query.trim();
   // const _q=""
   // query.match(/^\*/)&&(_s="startWith")&&query.substring(1)
@@ -141,9 +144,9 @@ exp.matchLastFile=async function (query,{ _service, orderBy = "name" }) {
     q: `'${await rootFolderId}' in parents and name contains '${query}'`,
     fields: "files(id, name, modifiedTime, size)",
   });
-  return  res.data.files;
+  return res.data.files;
 }
-exp._listFilesOnly=async function ({ _service, orderBy = "name" }) {
+exp._listFilesOnly = async function ({ _service, orderBy = "name" }) {
   const res = await _service.files.list({
     orderBy,
     q: `'${await rootFolderId}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder' and createdTime >= '2023-11-30T18:54:16.296Z'`, // Replace with the folder ID you want to list files from
@@ -153,7 +156,7 @@ exp._listFilesOnly=async function ({ _service, orderBy = "name" }) {
   const files = res.data.files;
   return files;
 }
-exp.listFiles=async function ({ _service, orderBy = "name" }) {
+exp.listFiles = async function ({ _service, orderBy = "name" }) {
   const res = await _service.files.list({
     orderBy,
     q: `'${await rootFolderId}' in parents and trashed = false`, // Replace with the folder ID you want to list files from
@@ -163,7 +166,7 @@ exp.listFiles=async function ({ _service, orderBy = "name" }) {
   const files = res.data.files;
   return files;
 }
-exp.listFilesOnly=async function ({ _service, orderBy = "name" }) {
+exp.listFilesOnly = async function ({ _service, orderBy = "name" }) {
   const res = await _service.files.list({
     orderBy,
     q: `'${await rootFolderId}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'`, // Replace with the folder ID you want to list files from
@@ -172,7 +175,7 @@ exp.listFilesOnly=async function ({ _service, orderBy = "name" }) {
   const files = res.data.files;
   return files;
 }
-exp.getFileLink=async function (fileId, { _service }) {
+exp.getFileLink = async function (fileId, { _service }) {
   const res = await _service.files.get({
     fileId,
     fields: "webViewLink"
@@ -181,7 +184,7 @@ exp.getFileLink=async function (fileId, { _service }) {
   const link = res.data.webViewLink;
   return link;
 }
-exp.deleteFile=async function (fileId, { _service }) {
+exp.deleteFile = async function (fileId, { _service }) {
   try {
     await _service.files.delete({
       fileId: fileId, // ID of the file you want to delete
@@ -191,7 +194,7 @@ exp.deleteFile=async function (fileId, { _service }) {
     return error;
   }
 }
-exp.downloadFile=async function (fileId, { _service, stream }) {
+exp.downloadFile = async function (fileId, { _service, stream }) {
   const response = await _service.files.get({
     fileId: fileId, // ID of the file you want to download
     alt: 'media', // Use 'media' to get the file content
@@ -199,7 +202,7 @@ exp.downloadFile=async function (fileId, { _service, stream }) {
 
   return response;
 }
-exp.__getPortionOfFile=async function (fileId, { startByte, endByte, _service: { context: { _options: { auth } } } }) {
+exp.__getPortionOfFile = async function (fileId, { startByte, endByte, _service: { context: { _options: { auth } } } }) {
   let fields = "";
   let url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&fields=${fields}`;
   const headers = {
@@ -235,7 +238,7 @@ exp.__getPortionOfFile=async function (fileId, { startByte, endByte, _service: {
 
   return response;
 }
-exp.getPortionOfFile=async function (fileId, { startByte, endByte, _service: { context: { _options: { auth } } } }) {
+exp.getPortionOfFile = async function (fileId, { startByte, endByte, _service: { context: { _options: { auth } } } }) {
   let fields = "";
   let url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&fields=${fields}`;
   const headers = {
@@ -243,31 +246,31 @@ exp.getPortionOfFile=async function (fileId, { startByte, endByte, _service: { c
     'Authorization': `Bearer ${(await auth.getAccessToken()).token}`, // Replace with your access token
   };
 
-  const {stream,status:code} = await xfetch(url,{
+  const req = await xfetch(url, {
     headers,
-    method:"GET",
+    method: "GET",
     MAX_BUFFER: 600_000
   })
-  if (!code || code > 400) {
-    throw new Error(`Failed to download the portion of the file. Status: ${code}`);
+  if (!req.status || req.status > 400) {
+    throw new Error(`Failed to download the portion of the file. Status: ${req.code}`);
   }
 
-  return stream;
+  return req;
 }
-exp.setPortionOfFile=async function (fileId, { startByte, endByte, _service: { context: { _options: { auth } } } }) {
+exp.setPortionOfFile = async function (fileId, { startByte, endByte, _service: { context: { _options: { auth } } } }) {
   return null
 }
-exp.uploadBasic=async function ({ name, type, obj }) {
+exp.uploadBasic = async function ({ name, q, type, obj }) {
   if (!type) type = mimeType.lookup(name) || "application/octet-stream";
 
   try {
-    const fileId = (await findFileByName(...arguments))?.id;
+    const fileId = (await exp.findFileByName(...arguments))?.id;
     let file;
     // console.log(fileId);
     if (fileId) {
-      file = await updateFile(fileId, ...arguments)
+      file = await exp.updateFile(fileId, ...arguments)
     } else {
-      file = await createFile(...arguments);
+      file = await exp.createFile(...arguments);
     }
     return file;
   } catch (err) {
@@ -276,7 +279,7 @@ exp.uploadBasic=async function ({ name, type, obj }) {
   }
 }
 
-exp.Response=async function (req, res) {
+exp.Response = async function (req, res) {
   const msg = {
     msg: null,
     type: null
@@ -297,18 +300,13 @@ exp.Response=async function (req, res) {
   }
   res.end = function (e) {
     res._end("data: " + JSON.stringify(msg) + "\n\n")
-    console.log("");
-    console.log("");
-    console.log(url);
-    console.log('-----');
+    puts("console-3",`\n${url}\n-------`);
   }
 
   if (okstatus) res.status = Function();
 
-  console.log("----");
-  console.log(url);
-  console.log("");
-  console.log("");
+  puts("console-1",`\n---${url}\n`);
+
 
   res.setHeader("content-type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -339,71 +337,69 @@ exp.Response=async function (req, res) {
 
 
   try {
-    let http;
-    if (url.match(/^https:(\/\/|\\\\)+/)) {
-      http = proto.https
-    } else {
-      http = proto.http
-    }
 
-    const request = await xfetch(url)
-      if (request.ok) {
-        if (!type) type = (request.headers["content-type"] || "");
 
-        let _type = type.replace(/\;[^]+$/, "").trim();
-        const iv = /[^(a-z)(0-9)_\-.@]/ig;
+    const request = await xfetch(url, { MAX_BUFFER: 2_000_000, TIMEOUT: 40_000 })
+    if (request.ok) {
+      if (!type) type = (request.headers["content-type"] || "");
 
-        if (!name) {
-          name = (url.match(/[^\\\/]+$/) || [`Unknown - ${Date.now()}`])[0].replace(/\?([^]?)+$/, "").replace(iv, "_ ");
+      let _type = type.replace(/\;[^]+$/, "").trim();
+      const iv = /[^(a-z)(0-9)_\-.@]/ig;
+
+      if (!name) {
+        name = (url.match(/[^\\\/]+$/) || [`Unknown - ${Date.now()}`])[0].replace(/\?([^]?)+$/, "").replace(iv, "_ ");
+      }
+
+      let ext = (name.match(/[^\\\/.]+$/) || [""])[0].toLowerCase();
+      ext = mimeType.types[ext]
+      if (!ext) {
+        ext = (mimeType.extensions[_type] || [])[0];
+        if (ext) {
+          name += "." + ext;
         }
-
-        let ext = (name.match(/[^\\\/.]+$/) || [""])[0].toLowerCase();
-        ext = mimeType.types[ext]
-        if (!ext) {
-          ext = (mimeType.extensions[_type] || [])[0];
-          if (ext) {
-            name += "." + ext;
+      }
+      q.prog = (q.prog || "").includes("y")
+      const file = await exp.uploadBasic({ stream: request.stream, q, name, type, _service, obj: msg }, {
+        onUploadProgress: (progressEvent) => {
+          let { bytesRead } = progressEvent;
+          if (!bytesRead) {
+            msg.type = "updating"
+            bytesRead = progressEvent;
+          } else {
+            msg.type = "uploading"
           }
+
+          msg.msg = bytesRead
+          msg._id = bytesRead
+
+          puts("console-2",`Uploaded ${bytesRead} bytes`);
+          res.write();
         }
-        q.prog = (q.prog || "").includes("y")
-        const file = await uploadBasic({ stream:request.stream, name, type, _service, obj: msg }, {
-          onUploadProgress: (progressEvent) => {
-            let { bytesRead } = progressEvent;
-            if (!bytesRead) {
-              msg.type = "updating"
-              bytesRead = progressEvent;
-            } else {
-              msg.type = "uploading"
-            }
+      }).catch(err => err + "");
 
-            msg.msg = bytesRead
-            msg._id = bytesRead
-
-            console.log(`Uploaded ${bytesRead} bytes`);
-            res.write();
-          }
-        }).catch(err => err + "");
-
-        if (typeof file === 'string') {
-          msg.type = "error"
-          console.log(msg.msg = 'Credential Error (2):' + file);
-          res.status(206);
-          res.end();
-        } else {
-          file.data.link = await getFileLink(file.data.id, { _service })
-          msg.type = 'complete'
-          msg.msg = file.data
-          res.end();
-        }
-      } else {
+      if (typeof file === 'string') {
         msg.type = "error"
-        console.error(msg.msg = "response not ok");
+        puts("console-2",msg.msg = 'Credential Error (2):' + file);
         res.status(206);
         res.end();
-        console.log(request.headers);
-        console.log(request.status);
-        console.log(request.statusText);
+      } else {
+        file.data.link = await exp.getFileLink(file.data.id, { _service })
+        msg.type = 'complete'
+        msg.msg = file.data
+        res.end();
       }
+    } else {
+      msg.type = "error"
+      msg.msg = "response not ok";
+      res.status(206);
+      res.end();
+      puts("console-2",`
+      ${msg.msg}
+      ${request.headers}
+      ${request.status}
+      ${request.statusText}
+      `)
+    }
 
   } catch (error) {
     err(error + "");

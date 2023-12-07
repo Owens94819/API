@@ -22,7 +22,7 @@ const { EventEmitter } = require('stream');
   thd.id = 0;
 
   // return
-  const { default: logUpdate } = await import('log-update')
+  // const { default: logUpdate } = await import('log-update')
 
   function pg(n) {
     if (n || pg.i.length > 3) {
@@ -71,37 +71,49 @@ const { EventEmitter } = require('stream');
 
   !fs.existsSync(_path) && fs.mkdirSync(_path)
 
-  async function download(id, resolve, prom) {
-
+  async function download(id, prom_h, prom, puts) {
     function log(...arg) {
-      print("header", arg.join("\n"))
+      puts("header", arg.join("\n"))
     }
+
     function logUpdate(...arg) {
-      print("body", arg.join("\n"))
+      puts("body", arg.join("\n"))
     }
     function title(...arg) {
       // log(...arg)
-      print("title", arg.join("\n"))
+      puts("title", arg.join("\n"))
     }
     function setFile() {
+      event.off("cancel", kill)
       pg(true)
+
       const d = setInterval(() => {
-        if (!active) {
-          print("header", "resolving so process")
-          clearInterval(d)
-          return;
-        }
         logUpdate("setting " + file.name.substring(0, 35) + pg())
       }, 200)
 
-      fs.createReadStream(pending_name, { start: fds })
-        .pipe(fs.createWriteStream(origin_name))
+      const p = fs.createReadStream(pending_name, { start: fds });
+      const o = fs.createWriteStream(origin_name)
+      let closed;
+
+      function cancel() {
+        closed = true
+        p.close();
+        o.close();
+        puts("header", "resolving so process")
+        clearInterval(d)
+        resolve()
+      }
+      p.pipe(o)
         .on("close", () => {
+          event.off("cancel", cancel)
+          if (closed) return;
           fs.unlinkSync(pending_name)
           clearInterval(d)
           logUpdate(`(${file.name}) -completed`)
           resolve()
         })
+
+      event.once("cancel", cancel)
     }
     function close() {
       fs.closeSync(fd)
@@ -112,6 +124,8 @@ const { EventEmitter } = require('stream');
       fs.writeSync(fd, buf, 0, null, 0)
     }
     function write(data) {
+      let res;
+      writing=new Promise(r=>res=r)
       if (data instanceof Buffer) {
         fs.writeSync(fd, data, 0, null, fds + start)
       } else {
@@ -119,25 +133,42 @@ const { EventEmitter } = require('stream');
       }
       start += data.length;
       byteSize(start)
+      res()
+      writing=void 0;
     }
-    function kill(res) {
-      res && res.destroy()
-      close()
+    function kill() {
+      res && res.destroy();
+      (typeof fd === "number") && close();
       resolve();
     }
 
+
+    let writing;
     let file;
-    const __foo = arguments.callee
-    if (!resolve) {
+    let res;
+    let fd;
+    let resolve;
+    let reject;
+    event.once("cancel", kill)
+
+
+    if (!prom_h) {
       prom = new Promise((res, rej) => {
         resolve = res
+        reject = rej
+        prom_h = [res, rej]
       })
+    } else {
+      resolve = prom_h[0]
+      reject = prom_h[1]
     }
-    const arg = [id, resolve, prom]
-    if (!active) {
-      resolve();
-      return prom
+    const __foo__ = arguments.callee
+    const __foo = function () {
+      event.off("cancel", kill)
+      __foo__(...arguments).catch(reject)
     }
+
+    const arg = [id, prom_h, prom, puts]
 
     try {
       file = await findFileById({ _service: service, id })
@@ -158,8 +189,7 @@ const { EventEmitter } = require('stream');
 
     let start = 0,
       _exist = fs.existsSync(origin_name),
-      fds = (file.size + "").length,
-      fd;
+      fds = (file.size + "").length;
 
     if (fs.existsSync(pending_name)) {
       fd = fs.openSync(pending_name, "r+")
@@ -175,11 +205,10 @@ const { EventEmitter } = require('stream');
       const buf = Buffer.alloc(fds)
       buf.fill(" ").write("0")
       if (_exist) {
-        INPUT_PAUSED = true
-        const q = "file exist, want to conti..(y/n)"
-        const val = (await prompt.get(q))[q]
+        log("Waiting for input...")
+        logUpdate("")
+        const val = await prompt("file exist, want to conti..(y/n)")
         if (val.trim().toLowerCase() !== "y") return logUpdate("terminated"), resolve();
-        INPUT_PAUSED = false
       } else {
         fs.writeFile(origin_name, Buffer.alloc(file.size), err => {
           if (err) log(err)
@@ -198,56 +227,51 @@ const { EventEmitter } = require('stream');
     }
 
     log(file.name)
+    async function fetch() {
+      if(writing) await writing;
+      
+      const req = await getPortionOfFile(id, { startByte: start, endByte: file.size, _service: service }).catch(err => { log(err) });
 
-    const res = await getPortionOfFile(id, { startByte: start, endByte: file.size, _service: service }).catch(err => { log(err) });
+      if (!req || !req.stream) {
+        close()
+        logUpdate("retring" + pg())
+        return __foo(...arg)
+      }
+      res = req.stream
 
-    if (!res) {
-      close()
-      logUpdate("retring" + pg())
-      return __foo(...arg)
+
+      logUpdate(`pending: ${Size(start)} - ${Size(file.size, true)}`);
+
+
+      res.on("end", function () {
+        logUpdate(`downloading: ${Size(start)} - ${Size(file.size)}`)
+        title(`downloading: done!`)
+        byteSize("D")
+        close()
+        setFile()
+      })
+
+      res.on("timeout", function () {
+        logUpdate("retry from: " + Size(start))
+        setTimeout(fetch, 1000)
+      })
+
+      res.on("error", function () {
+        logUpdate("An Error occured.\nNow retrying: " + Size(start))
+        setTimeout(fetch, 1000)
+      })
+
+      res.on("data", function (e) {
+        write(e)
+        logUpdate(`downloading: ${Size(start, true)} - ${Size(file.size)} - (speed: ${Size(e.length)})`)
+      })
     }
-
-    logUpdate(`pending: ${Size(start)} - ${Size(file.size, true)}`);
-
-    let timeout;
-
-    res.on("end", function () {
-      if (!active) {
-        kill()
-        return
-      }
-      logUpdate(`downloading: ${Size(start)} - ${Size(file.size)}`)
-      title(`downloading: done!`)
-      byteSize("D")
-      close()
-      setFile()
-    })
-
-    res.on("timeout", function () {
-      logUpdate("retry from: " + Size(start))
-      close()
-      __foo(...arg)
-    })
-
-    res.on("error", function () {
-      logUpdate("An Error occured.\nNow retrying: " + Size(start))
-      close()
-      __foo(...arg)
-    })
-
-    res.on("data", function (e) {
-      if (!active) {
-        kill(res)
-        return
-      }
-      write(e)
-      logUpdate(`downloading: ${Size(start, true)} - ${Size(file.size)} - (speed: ${Size(e.length)})`)
-    })
+    fetch();
     return prom
   }
 
   const arg = { _service: service }
-const event=new EventEmitter();
+  const event = new EventEmitter();
   let _app_data;
   let app_data;
   if (!fs.existsSync(app_data_path)) {
@@ -263,8 +287,10 @@ const event=new EventEmitter();
     prvn = (pageId * max_page) + n
     usr_ipt = prvn + 1
     render.check(prvn)
-    // print(`n:${n}, prvn:${prvn}, ${!(!app_data[prvn])}, ${pageId}`)
+    // puts(`n:${n}, prvn:${prvn}, ${!(!app_data[prvn])}, ${pageId}`)
     app_data[prvn] && setItem(app_data[prvn], prvn, true)
+
+    puts.add("input_header", IH)
     if (app_data.length) {
       num(usr_ipt)
     } else {
@@ -278,12 +304,12 @@ const event=new EventEmitter();
     for (let i = id; i < (id + max_page); i++) {
       _i += 1;
       if (!app_data[i]) {
-        print.add("item-" + (_i), "")
+        puts.add("item-" + (_i), "")
         continue;
       };
       setItem(app_data[i], i, void 0, true)
     }
-    print.drop();
+    puts.drop();
     return true
   }
   render.i = 0
@@ -343,15 +369,16 @@ const event=new EventEmitter();
     }
     return render()
   }
-  function close(blk, noDrop) {
+  async function close(blk, noDrop) {
+    event.emit("cancel")
     busy = active = CMD = false
-    print.add("home_cmd", blk ? "" : HC)
-    print.add("header", "")
-    print.add("title", "")
-    print.add("body", "")
-    !noDrop && print.drop()
-    //data = app_data[prvn]
-    //data && setItem(data, prvn)
+    puts.add("home_cmd", blk ? "" : HC)
+    puts.add("input_header", IH)
+
+    puts.add("header", "")
+    puts.add("title", "")
+    puts.add("body", "")
+    !noDrop && puts.drop()
   }
   function setItem({ name }, key, s, int) {
     key += 1;
@@ -361,9 +388,9 @@ const event=new EventEmitter();
     }
     const msg = `${chalk.bgBlue(key + ")")} ${s ? chalk.bgYellow(name) : name}\n`
     if (int) {
-      print.add("item-" + (n), msg)
+      puts.add("item-" + (n), msg)
     } else {
-      print("item-" + (n), msg)
+      puts("item-" + (n), msg)
     }
   }
 
@@ -385,22 +412,52 @@ const event=new EventEmitter();
     }
     if (prvn >= 0) setItem(app_data[prvn], prvn)
     prvn = n
-    // file = data
     setItem(data, n, true)
-    // CMD = true
-    // active = true
-    // print("home_cmd", EC)
   }
 
   function num(usr_ipt) {
     if (usr_ipt === false) {
-      print("input", chalk`{gray ~}{bgBlue.italic ${IC}}{gray ~}`)
+      let DF = IC;
+      if (typeof INPUT_PAUSED === "string" && INPUT_PAUSED.trim()) {
+        DF = INPUT_PAUSED;
+      }
+      puts("input", chalk`{gray ~}{bgBlue.italic ${DF}}{gray ~}`)
     } else {
-      print("input", chalk`{gray ~}{bgBlue.bold ${usr_ipt}}{gray ~}`)
+      puts("input", chalk`{gray ~}{bgBlue.bold ${usr_ipt}}{gray ~}`)
     }
   }
+  async function prompt(_IC) {
+    return new Promise((r, j) => {
+      if (typeof _IC !== "string" || !_IC.toString().trim()) {
+        j("Invalid INPUT")
+        return
+      }
+      usr_ipt = "";
+      INPUT_PAUSED = true
+      _IC = _IC.toUpperCase();
+      puts.add("input_header", _IC + ":")
+      num(IC)
+      function cancel() {
+        puts.add("input_header", IH)
+        j();
+        event.off("message", msg)
+        INPUT_PAUSED = false
+      }
+      function msg() {
+        usr_ipt = "";
+        puts.add("input_header", IH)
+        puts("input", IC)
 
+        event.off("cancel", cancel)
+        r(...arguments)
+        INPUT_PAUSED = false
+      }
+      event.once("message", msg)
+      event.once("cancel", cancel)
+    })
+  }
 
+  const IH = ""
   const IC = chalk`Type...`
   const HC = chalk`
   [{yellow Ctrl}+{yellow Right}]: Next page
@@ -426,11 +483,11 @@ const event=new EventEmitter();
   //#region 
   keypress(process.stdin)
   let key_cmd = {
-    escape: () => {
-      if (!escapable) return print("body", "This process should automatically exit once done, untill then please hold");
+    escape: (puts) => {
+      if (!escapable) return puts("body", "This process should automatically exit once done, untill then please hold");
       close()
     },
-    return: () => {
+    return: (puts) => {
       if (CMD) {
         key_cmd.file.return()
       } else {
@@ -438,11 +495,11 @@ const event=new EventEmitter();
       }
     },
     main: {
-      r: async () => {
-        print.add("home_cmd", ES)
-        print.add("header", "Refresh")
-        print.add("title", "Sorting Data")
-        print("body", "Please wait, this should not take long")
+      r: async (puts) => {
+        puts.add("home_cmd", ES)
+        puts.add("header", "Refresh")
+        puts.add("title", "Sorting Data")
+        puts("body", "Please wait, this should not take long")
         const id = thd.id += 1
 
         escapable = false;
@@ -460,49 +517,59 @@ const event=new EventEmitter();
           })
 
         } catch (err) {
-          print("body", "process Failed. you can [esc] and try again.\n" + err)
+          puts("body", "process Failed. you can [esc] and try again.\n" + err)
           escapable = true;
           return
         }
       },
-      return: () => {
+      return: (puts) => {
         send()
       },
-      s: () => {
-        let s = usr_ipt.toString().toLowerCase().trim();
-        const rst = [];
-        app_data.map(v => v.name.toLowerCase().includes(s) && rst.push(v))
-        app_data = rst
-        prvn = pageId = 0;
-        setDataSet()
-        if (rst.length === 0) {
-          print("home_cmd", ER)
-        }
+      s: (puts) => {
+        busy = true;
+        puts("home_cmd", ES)
+        puts("body", "use [enter] to submit")
+        key_cmd.busy.push({
+          name: "return", cb: () => {
+            let s = usr_ipt.toString().toLowerCase().trim();
+            const rst = [];
+            app_data.map(v => v.name.toLowerCase().includes(s) && rst.push(v))
+            if (rst.length === 0) {
+              puts("home_cmd", ER)
+            } else {
+              app_data = rst
+              prvn = pageId = 0;
+              setDataSet()
+            }
+            busy = false
+            key_cmd.global.push({
+              name: "escape", cb: () => key_cmd.main.z(puts)
+            })
+          }
+        })
       },
-      z: () => {
+      z: (puts) => {
         app_data = _app_data
         prvn = pageId = 0;
         close()
         setDataSet()
       },
-      up: () => {
+      up: (puts) => {
         const m = (pageId * max_page)
         let n = prvn - 1
         const data = app_data[n]
         if (!data) return;
         if (n < m) {
-          // print(999,`n:${n}-m:${m}`)
           render.prev()
         } else {
           if (prvn >= 0) setItem(app_data[prvn], prvn)
         }
-
         prvn = n
         setItem(data, prvn, true)
         usr_ipt = prvn + 1
         num(usr_ipt)
       },
-      down: () => {
+      down: (puts) => {
         const m = (pageId * max_page) + max_page
         let n = prvn + 1
         const data = app_data[n]
@@ -517,7 +584,7 @@ const event=new EventEmitter();
         usr_ipt = prvn + 1
         num(usr_ipt)
       },
-      left: () => {
+      left: (puts) => {
         if (render.prev(prvn - max_page) && app_data[prvn]) {
           const data = app_data[prvn]
           setItem(data, prvn, true)
@@ -526,7 +593,7 @@ const event=new EventEmitter();
         }
 
       },
-      right: () => {
+      right: (puts) => {
         if (render.next(prvn + max_page) && app_data[prvn]) {
           const data = app_data[prvn]
           setItem(data, prvn, true)
@@ -537,19 +604,27 @@ const event=new EventEmitter();
       },
     },
     file: {
-      d: () => {
-        active = true
-        print.add("header", "Initializing Download")
-        print("body","Looking up file")
-        download(file.id).then(() => {
-          // print("header", "")
-          // print("title", "")
-          print("body", "Download canceled")
-          active = busy = false
+      d: (puts) => {
+        puts.add("header", "Initializing Download")
+        puts("body", "Looking up file")
+        key_cmd.busy.push({
+          name: "return", cb: () => {
+            if (INPUT_PAUSED) {
+              event.emit("message", usr_ipt)
+            }
+          }
+        })
+        download(file.id, null, null, puts).then(() => {
+          // puts("header", "")
+          // puts("title", "")
+          puts("body", "Download Resolved")
+          busy = false
+        }).catch(err => {
+          puts("body", "Download Error: " + err)
         })
       },
-      f: () => {
-        print("body", `
+      f: (puts) => {
+        puts("body", `
               name: ${file.name}
               size: ${file.size}
               id: ${file.id}
@@ -558,18 +633,18 @@ const event=new EventEmitter();
               `)
         busy = false
       },
-      delete: async () => {
+      delete: async (puts) => {
         escapable = false;
-        print("header", file.name)
-        print("title", "Deleting...")
-        print("body", "Please wait, this should not take long")
+        puts("header", file.name)
+        puts("title", "Deleting...")
+        puts("body", "Please wait, this should not take long")
         const id = thd.id += 1
         const del = await deleteFile(file.id, arg)
         if (del === false) {
-          print("title", "Looks like this file no longer exist")
+          puts("title", "Looks like this file no longer exist")
         } else if (typeof del === "string") {
-          print("title", del)
-          print("body", "")
+          puts("title", del)
+          puts("body", "")
           escapable = true;
           busy = false
           setDataSet()
@@ -581,7 +656,7 @@ const event=new EventEmitter();
           escapable = true;
           busy = false
           // close()
-        print("body", "Successfully Deleted!")
+          puts("body", "Successfully Deleted!")
           setDataSet()
         })
         thd.postMessage({
@@ -591,18 +666,15 @@ const event=new EventEmitter();
           app_data,
           _app_data
         })
-      },
-      return: () => {
-        // print(usr_ipt)
       }
-    }
+    },
+    busy: [],
+    global: []
   }
-  let prvn = -1
-  let _prvn = -1
+
   let file = null;
   let CMD = false
   INPUT_PAUSED = false
-  let active = false
   let escapable = true;
 
   let usr_ipt = "";
@@ -610,31 +682,62 @@ const event=new EventEmitter();
   data_set = [];
   const max_page = 5;
   let pageId = 0;
-  let pageKey = 0;
+  let prvn = -1
 
   var t;
 
   setDataSet()
-  print("home_cmd", HC)
-  print("header", "")
-  print("title", "")
-  print("body", "")
+  puts("home_cmd", HC)
+  puts("header", "")
+  puts("title", "")
+  puts("body", "")
 
   //#endregion
 
   process.stdin.on("keypress", async (ch, arg) => {
     if (arg) var { name, ctrl } = arg;
     if (ctrl && name === "c") return process.exit();
-    if (INPUT_PAUSED) return;
+    let _puts = function () {
+      if (false) {
+        _puts = () => { }
+        return
+      }
+      print(...arguments)
+    }
+    let puts = function () {
+      _puts(...arguments)
+    }
+    puts.add = print.add
+    puts.drop = print.drop
+    function cancel() {
+      puts.add = puts.drop = _puts = () => { }
+    }
+    function get_cmd(once) {
+      !once && event.once("cancel", cancel)
+      return key_cmd
+    }
+
+    if (busy) {
+      const foo = get_cmd(true).busy.find(val => !val.ctrl === !ctrl && (val.name === name || val.name === ch))
+      if (foo) {
+        get_cmd().busy = [];
+        foo.cb(puts)
+        return
+      };
+    } else {
+      const foo = get_cmd(true).global.find(val => !val.ctrl === !ctrl && (val.name === name || val.name === ch))
+      if (foo) {
+        get_cmd().global = [];
+        foo.cb(puts)
+        return
+      };
+    };
+
+
     if (name === "escape") {
       key_cmd.escape()
       return
     }
-    // if (name === "return") {
-    //   key_cmd.return();
-    //   return
-    // }
-    // print("--",`name:${name}-ch:${ch}-ctrl:${ctrl},\n${JSON.stringify(arg)}`)
 
     if (!ctrl) {
       if (name === "backspace") {
@@ -646,38 +749,35 @@ const event=new EventEmitter();
       num(usr_ipt.trim() || false)
     }
 
-
-
-    if (busy) return;
-
-
+    if (busy) return
 
     if (ctrl) {
-      if (key_cmd.main[name]) {
+      if (get_cmd(true).main[name]) {
         close()
-        key_cmd.main[name]()
+        get_cmd().main[name](puts)
         return
-      } else if (key_cmd.file[name]) {
+      } else if (get_cmd(true).file[name]) {
         file = app_data[prvn]
         if (!file) return
         close(true, true)
-        print("home_cmd", ES)
+        puts("home_cmd", ES)
         busy = true
-        await key_cmd.file[name]()
+        await get_cmd().file[name](puts)
         return
       } else {
-        print("home_cmd", IV)
+        close(true, true)
+        puts("home_cmd", IV)
       }
     } else if (name === "delete") {
       file = app_data[prvn]
       if (!file) return
       close(true, true)
-      print("home_cmd", ES)
+      puts("home_cmd", ES)
       busy = true
-      await key_cmd.file.delete()
+      await get_cmd().file.delete(puts)
       return
     } else if (name === "return") {
-      key_cmd.main.return();
+      get_cmd().main.return(puts);
       return
     }
   })

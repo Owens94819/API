@@ -18,10 +18,9 @@ Uint8Array.prototype.write = function (arr) {
         this.written += arr.length
     }
 }
-let _MAX_BUFFER = 10_000
-// const MAX_BUFFER = 1_000_000
-let _TIMEOUT = 20_000 + ((_MAX_BUFFER / 1000) * 100)
-module.exports = async function () {
+const _MAX_BUFFER = 100_000
+const _TIMEOUT = 20_000 + ((_MAX_BUFFER / 1000) * 100)
+async function xfetch(...argument) {
     let MAX_BUFFER = _MAX_BUFFER
     let TIMEOUT = _TIMEOUT
     if (typeof arguments[1] === "object") {
@@ -64,14 +63,7 @@ module.exports = async function () {
     class Stream extends Readable {
         constructor() {
             super(...arguments)
-            stream = this;
-            // this.push = (msg) => {
-            //     if (!msg) {
-            //         stream.emit("end")
-            //     } else {
-            //         stream.emit("data", msg)
-            //     }
-            // }
+            stream =this;
         }
         _read() {
             if (busy || stream.destroyed) return;
@@ -84,12 +76,7 @@ module.exports = async function () {
             if (args) {
                 next(args)
             } else {
-                try {
                     res.read().then(next).catch(_error)
-                } catch (error) {
-                    print("ft", "error1=> " + error)
-                    _error(error)
-                }
             }
         }
         _destroy(err) {
@@ -102,9 +89,6 @@ module.exports = async function () {
     const req = await fetch(...arguments)
     const res = req.body.getReader()
     req.stream = new Stream();
-
-
-
 
     function next({ value, done }) {
         args && (args = void 0)
@@ -132,6 +116,7 @@ module.exports = async function () {
             stream._read();
         }
     }
-
     return req
 }
+
+module.exports=xfetch

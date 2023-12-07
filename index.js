@@ -60,56 +60,27 @@ function _require(md, key) {
 }
 
 
-ENV.dev=""
+// ENV.dev=""
 
-u="http://localhost:8080/kk"
-// u="https://github.com"
+// u="http://localhost:8080/k"
+// // u="https://github.com"
 
-xfetch(u,{MAX_BUFFER:100_000_000,TIMEOUT:1000}).then(({stream})=>{
-  // stream.pipe(WriteStream("text")).on("close",e=>log("cl"))
+// xfetch(u,{MAX_BUFFER:70_000_000,TIMEOUT:1000}).then(({stream})=>{
+//   stream.pipe(WriteStream("text")).on("close",e=>log("cl"))
 
-  stream.on("data",buf=>{
-    log(buf.length,stream.destroyed)
-  })
-  .on("end",buf=>{
-    log("end")
-  })
-  .on("close",buf=>{
-    log("close")
-  })
-  .on("error",buf=>{
-    log("error")
-  })
-  .on("timeout",buf=>{
-    log("timeout")
-  })
-})
-
-let busy;
-let a=0;
-class _Stream extends Readable {
-  constructor() {
-      super(...arguments)
-  }
-  async _read() {
-    log(a)
-      if(busy) return;
-      busy=true
-      a=true
-      this.push(Buffer.alloc(100_000_000))
-      a=false
-      this.emit("timeout")
-        // this.destroy()
-  }
-  _destroy(){
-    log("des")
-  }
-}
-
-// d=new _Stream();
-// d.on("data",e=>{
-//   // log(e)
-// })
-// d.on("timeout",e=>{
-//   // log("timeout")
+//   stream.on("data",buf=>{
+//     log(buf.length,stream.destroyed)
+//   })
+//   .on("end",buf=>{
+//     log("end")
+//   })
+//   .on("close",buf=>{
+//     log("close")
+//   })
+//   .on("error",buf=>{
+//     log("error")
+//   })
+//   .on("timeout",buf=>{
+//     log("timeout")
+//   })
 // })

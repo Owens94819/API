@@ -29,18 +29,34 @@ module.exports = async function () {
         TIMEOUT = Number(arguments[1].TIMEOUT) || TIMEOUT
     }
 
-    async function _timeout() {
-        uint8Array&&uint8Array.written&&await stream.push(Buffer.from(uint8Array.subarray(0, uint8Array.written)))
-        stream.emit("timeout")
-        stream.destroy()
+    function _timeout() {
+        callback = () => {
+            stream.emit("timeout")
+            stream.destroy()
+        }
+        if (uint8Array && uint8Array.written) {
+            stream.push(Buffer.from(uint8Array.subarray(0, uint8Array.written)))
+        } else {
+            callback();
+            callback = void 0
+        }
     }
-    async function _error(err) {
-        uint8Array&&uint8Array.written&&await stream.push(Buffer.from(uint8Array.subarray(0, uint8Array.written)))
-        stream.emit("error",err)
-        stream.destroy()
+    function _error(err) {
+        callback = () => {
+            stream.emit("error", err)
+            stream.destroy()
+        }
+        if (uint8Array && uint8Array.written) {
+            stream.push(Buffer.from(uint8Array.subarray(0, uint8Array.written)))
+        } else {
+            callback();
+            callback = void 0
+        }
     }
 
     let stream;
+    let args;
+    let callback;
     let timeout;
     let busy = false;
     let uint8Array = new Uint8Array(MAX_BUFFER)
@@ -58,54 +74,62 @@ module.exports = async function () {
             // }
         }
         _read() {
-            if(busy) return;
-            busy=true
+            if (busy || stream.destroyed) return;
+            if (callback) {
+                callback(...arguments);
+                callback = void 0;
+                return;
+            }
             timeout = setTimeout(_timeout, TIMEOUT);
-            try {
-                res.read().then(next).catch(_error)
-            } catch (error) {
-                print("ft","error1=> "+error)
-                _error(error)
+            if (args) {
+                next(args)
+            } else {
+                try {
+                    res.read().then(next).catch(_error)
+                } catch (error) {
+                    print("ft", "error1=> " + error)
+                    _error(error)
+                }
             }
         }
-        _destroy(err){
+        _destroy(err) {
             res.cancel("destroyed");
-            if(err) stream.emit("error",err)
+            if (err) stream.emit("error", err)
             stream.removeAllListeners();
         }
     }
 
     const req = await fetch(...arguments)
     const res = req.body.getReader()
-    req.stream=new Stream();
-    
+    req.stream = new Stream();
+
 
 
 
     function next({ value, done }) {
+        args && (args = void 0)
         clearTimeout(timeout)
         if (done) {
-            stream.push(Buffer.from(uint8Array.subarray(0, uint8Array.written)))
-            uint8Array = void 0;
-            if (stream.destroyed) return;
-            stream.push(null)
+            if (uint8Array && uint8Array.written) {
+                stream.push(Buffer.from(uint8Array.subarray(0, uint8Array.written)))
+                uint8Array = void 0;
+            } else {
+                stream.push(null)
+            }
             return
         }
 
-        while (value = uint8Array.write(value)) {
-            stream.push(Buffer.from(uint8Array))
-            if (stream.destroyed) return;
-            uint8Array = new Uint8Array(MAX_BUFFER)
-        }
+        value = uint8Array.write(value)
 
-        uint8Array.written === uint8Array.length && (stream.push(Buffer.from(uint8Array)),uint8Array = new Uint8Array(MAX_BUFFER))
-        if (stream.destroyed) return;
-        timeout = setTimeout(_timeout, TIMEOUT);
-        try {
-            res.read().then(next).catch(_error)
-        } catch (error) {
-            print("ft","error2=> "+error)
-            _error(error)
+        if (value) {
+            stream.push(Buffer.from(uint8Array))
+            uint8Array = new Uint8Array(MAX_BUFFER)
+            args = { value, done }
+        } else if (uint8Array.written === uint8Array.length) {
+            stream.push(Buffer.from(uint8Array))
+            uint8Array = new Uint8Array(MAX_BUFFER)
+        } else {
+            stream._read();
         }
     }
 

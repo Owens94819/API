@@ -4,6 +4,7 @@ const chalk = require('chalk');
 const keypress = require('keypress');
 const { Worker, MessageChannel } = require('node:worker_threads');
 const prompt = require('prompt');
+const { EventEmitter } = require('stream');
 // const { escape } = require('querystring');
 // const { send, kill } = require('process');
 
@@ -246,7 +247,7 @@ const prompt = require('prompt');
   }
 
   const arg = { _service: service }
-
+const event=new EventEmitter();
   let _app_data;
   let app_data;
   if (!fs.existsSync(app_data_path)) {
@@ -543,7 +544,7 @@ const prompt = require('prompt');
         download(file.id).then(() => {
           // print("header", "")
           // print("title", "")
-          print("body", "")
+          print("body", "Download canceled")
           active = busy = false
         })
       },

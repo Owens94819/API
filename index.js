@@ -1,8 +1,11 @@
 
-const { log } = require('console');
-const { WriteStream } = require('fs');
-const { Stream, Duplex } = require('stream');
+const { log } = require('node:console');
+const { WriteStream, ReadStream } = require('node:fs');
+const { Stream, Duplex, Readable } = require('node:stream');
+const net = require('node:net');
+const { EventEmitter } = require('node:events');
 print = require('./xlog.js');
+xfetch = require('./xfetch.js');
 
 
 require('dotenv').config()
@@ -10,11 +13,12 @@ require('dotenv').config()
 const express = require("express"),
   ENV = process.env,
   app = express(),
+  // fetch = require("node-fetch"),
   prompt = require("prompt"),
   url = require("url"),
   http = require("http"),
   https = require("https"),
-  server = app.listen(ENV.PORT, () => {
+  server = app.listen(ENV.PORT||void 0, () => {
     var port = server.address().port;
     console.log(`http://localhost:${port}\n-----------`);
     ENV.dev && require('./test/drive-api.js')
@@ -56,79 +60,56 @@ function _require(md, key) {
 }
 
 
-// ENV.dev=""
-// buf=new Stream()
-// d=new Duplex({
-//   write:e=>{
-//     log(e+"")
-//   },
-//   read:()=>{
-//     log("readind")
-//   }
+ENV.dev=""
+
+u="http://localhost:8080/kk"
+// u="https://github.com"
+
+xfetch(u,{MAX_BUFFER:100_000_000,TIMEOUT:1000}).then(({stream})=>{
+  // stream.pipe(WriteStream("text")).on("close",e=>log("cl"))
+
+  stream.on("data",buf=>{
+    log(buf.length,stream.destroyed)
+  })
+  .on("end",buf=>{
+    log("end")
+  })
+  .on("close",buf=>{
+    log("close")
+  })
+  .on("error",buf=>{
+    log("error")
+  })
+  .on("timeout",buf=>{
+    log("timeout")
+  })
+})
+
+let busy;
+let a=0;
+class _Stream extends Readable {
+  constructor() {
+      super(...arguments)
+  }
+  async _read() {
+    log(a)
+      if(busy) return;
+      busy=true
+      a=true
+      this.push(Buffer.alloc(100_000_000))
+      a=false
+      this.emit("timeout")
+        // this.destroy()
+  }
+  _destroy(){
+    log("des")
+  }
+}
+
+// d=new _Stream();
+// d.on("data",e=>{
+//   // log(e)
 // })
-// // log(d)
-// process.stdout.pipe(d)
-// d.write("ppp")
-// log(99)
-// d=[1,2]
-
-// const fs = require('fs');
-// process.stdout.write('\n')
-// var stdout= process.stdout,
-// y=stdout.columns;
-// // stdout.cursorTo(0,y)
-// stdout.write("start:"+y)
-// log("\nooooo")
-// setTimeout(() => {
-// //   stdout.cursorTo(0,11)
-// //   s=stdout.getWindowSize();
-// r=stdout.moveCursor(0,-1)
-// stdout.cursorTo(0,0)
-// stdout.
-//   stdout.cursorTo(0,10)
-// stdout.write("[here]2\npp\n\n\nkkk\njj")
-// stdout.cursorTo(0,10)
-// stdout.write("here")
-// // buf.write("--")
-// // stdout.write("\n2 ppp:"+y)
-// // stdout.write("\n3 ppp:"+y)
-// // stdout.cursorTo(0,11)
-// // stdout.write("ppp:"+y)
-// // log(stdout.columns)
-// }, 1000);
-// // var Jetty = require("jetty");
-// // var jetty = new Jetty(process.stdout);
-// // // Clear the screen
-// // // jetty.clear();
-// // jetty.text("ppp").moveTo([0,0])
-
-// // setTimeout(() => {
-// //   process.stdout.cursorTo(-1)
-// //   process.stdout.clearLine(1)
-// // process.stdout.write('\nooo')
-// // }, 100000);
-// // prompt.start({noHandleSIGINT: true});
-// // prompt.message="-"
-// // //#region 
-// // process.on('SIGIO', function() {
-// //   console.log("up");
-// // });
-// // process.on('SIGINFO', function() {
-// //   console.log("up");
-// // });
-// // prompt.on("up",e=>{
-// //   log("up--")
-// // })
-// // //#endregion
-// // prompt.get('l')
-// // const print = require('./xlog.js');
-
-// // print("1")
-// // print("2")
-// // print(1,"3")
-// // print("4")
-// // i=0
-// // setInterval(()=>{
-// // print(1,i++)
-// // },1000)
-// // set
+// d.on("timeout",e=>{
+//   // log("timeout")
+// })

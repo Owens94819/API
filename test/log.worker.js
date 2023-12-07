@@ -1,5 +1,5 @@
+const { parentPort } = require('node:worker_threads');
 const logs = []
-const chalk = require('chalk');
 var key = () => {
     return `x-${Math.random()}-${logs.length}-${Date.now()}`
 };
@@ -38,30 +38,26 @@ print.drop = async function () {
         logUpdate = (await import('log-update')).default
     }
     var log = ""
+    // console.log(logs);
     logs.map(val => {
         if (typeof val === "string" && !val.trim()) return;
-        log += val + "\n"
+        log += val + "\n";
     })
-    logUpdate((log))
+    // console.log(log);
+    // console.log("-------------");
+    logUpdate(log)
     log = void 0;
 }
-
-
-/****
- * 
- * const { Worker } = require('node:worker_threads');
-
-const thd = new Worker("./test/log.worker.js")
-module.exports = print
-
-async function print(...args) {
-    thd.postMessage({type:"print",args})
-}
-
-print.add = function (...args) {
-    thd.postMessage({type:"add",args})
-}
-print.drop = async function (...args) {
-    thd.postMessage({type:"drop",args})
-}
- */
+parentPort.on('message', ({ type, args }) => {
+    switch (type) {
+        case "drop":
+            print.drop(...args)
+            break;
+        case "add":
+            print.add(...args)
+            break;
+        case "print":
+            print(...args)
+            break;
+    }
+});

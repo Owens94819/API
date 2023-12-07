@@ -4,9 +4,11 @@ const fs = require('fs');
 const proto = { https: require('https'), http: require('http') };
 const { GoogleAuth } = require('google-auth-library');
 const { google } = require('googleapis');
+
 const mimeType = require('mime-types');
 const { OAuth2: OAuth2Client } = google.auth;
 const URL = require('url');
+const xfetch = require('../../xfetch');
 setToken(token);
 
 
@@ -186,7 +188,7 @@ exp.deleteFile=async function (fileId, { _service }) {
     });
     return true
   } catch (error) {
-    return false;
+    return error;
   }
 }
 exp.downloadFile=async function (fileId, { _service, stream }) {
@@ -197,7 +199,7 @@ exp.downloadFile=async function (fileId, { _service, stream }) {
 
   return response;
 }
-exp.getPortionOfFile=async function (fileId, { startByte, endByte, _service: { context: { _options: { auth } } } }) {
+exp.__getPortionOfFile=async function (fileId, { startByte, endByte, _service: { context: { _options: { auth } } } }) {
   let fields = "";
   let url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&fields=${fields}`;
   const headers = {
@@ -232,6 +234,25 @@ exp.getPortionOfFile=async function (fileId, { startByte, endByte, _service: { c
   }
 
   return response;
+}
+exp.getPortionOfFile=async function (fileId, { startByte, endByte, _service: { context: { _options: { auth } } } }) {
+  let fields = "";
+  let url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&fields=${fields}`;
+  const headers = {
+    'Range': `bytes=${startByte}-${endByte}`,
+    'Authorization': `Bearer ${(await auth.getAccessToken()).token}`, // Replace with your access token
+  };
+
+  const {stream,status:code} = await xfetch(url,{
+    headers,
+    method:"GET",
+    MAX_BUFFER: 600_000
+  })
+  if (!code || code > 400) {
+    throw new Error(`Failed to download the portion of the file. Status: ${code}`);
+  }
+
+  return stream;
 }
 exp.setPortionOfFile=async function (fileId, { startByte, endByte, _service: { context: { _options: { auth } } } }) {
   return null
@@ -325,10 +346,9 @@ exp.Response=async function (req, res) {
       http = proto.http
     }
 
-    const server = http.get(url, async function (stream) {
-      const ok = stream.statusMessage.toLowerCase();
-      if (ok) {
-        if (!type) type = (stream.headers["content-type"] || "");
+    const request = await xfetch(url)
+      if (request.ok) {
+        if (!type) type = (request.headers["content-type"] || "");
 
         let _type = type.replace(/\;[^]+$/, "").trim();
         const iv = /[^(a-z)(0-9)_\-.@]/ig;
@@ -346,7 +366,7 @@ exp.Response=async function (req, res) {
           }
         }
         q.prog = (q.prog || "").includes("y")
-        const file = await uploadBasic({ stream, name, type, _service, obj: msg }, {
+        const file = await uploadBasic({ stream:request.stream, name, type, _service, obj: msg }, {
           onUploadProgress: (progressEvent) => {
             let { bytesRead } = progressEvent;
             if (!bytesRead) {
@@ -380,16 +400,11 @@ exp.Response=async function (req, res) {
         console.error(msg.msg = "response not ok");
         res.status(206);
         res.end();
-        console.log(stream.headers);
-        console.log(stream.statusCode);
-        console.log(stream.statusMessage);
+        console.log(request.headers);
+        console.log(request.status);
+        console.log(request.statusText);
       }
 
-    })
-
-    server.on("error", (error) => err(error + ""))
-
-    server.end();
   } catch (error) {
     err(error + "");
   }

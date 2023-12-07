@@ -93,14 +93,12 @@ const prompt = require('prompt');
         logUpdate("setting " + file.name.substring(0, 35) + pg())
       }, 200)
 
-      const stream = fs.createReadStream(name, { start: fds })
-      stream.pipe(fs.createWriteStream(_name))
+      fs.createReadStream(pending_name, { start: fds })
+        .pipe(fs.createWriteStream(origin_name))
         .on("close", () => {
-          stream.close();
-          fs.unlinkSync(name)
+          fs.unlinkSync(pending_name)
           clearInterval(d)
           logUpdate(`(${file.name}) -completed`)
-          // logUpdate.done();
           resolve()
         })
     }
@@ -139,11 +137,12 @@ const prompt = require('prompt');
       resolve();
       return prom
     }
+
     try {
       file = await findFileById({ _service: service, id })
       file.size = Number(file.size)
     } catch (error) {
-      logUpdate("retring: file-id-err" + pg())
+      logUpdate("Retring: file-id-err" + pg())
       setTimeout(function () {
         __foo(...arg)
       }, 200)
@@ -153,16 +152,16 @@ const prompt = require('prompt');
       resolve()
       return log("file not found")
     }
-    const _name = path.join(_path, file.name);
-    const name = _name + ".pending";
+    const origin_name = path.join(_path, file.name);
+    const pending_name = origin_name + ".pending";
 
     let start = 0,
-      _exist = fs.existsSync(_name),
+      _exist = fs.existsSync(origin_name),
       fds = (file.size + "").length,
       fd;
 
-    if (fs.existsSync(name)) {
-      fd = fs.openSync(name, "r+")
+    if (fs.existsSync(pending_name)) {
+      fd = fs.openSync(pending_name, "r+")
       start = Buffer.alloc(fds)
       fs.readSync(fd, start, 0, start.length, 0)
       start = start.toString().trim()
@@ -181,12 +180,12 @@ const prompt = require('prompt');
         if (val.trim().toLowerCase() !== "y") return logUpdate("terminated"), resolve();
         INPUT_PAUSED = false
       } else {
-        fs.writeFile(_name, Buffer.alloc(file.size), err => {
+        fs.writeFile(origin_name, Buffer.alloc(file.size), err => {
           if (err) log(err)
         })
       }
-      fs.writeFileSync(name, buf)
-      fd = fs.openSync(name, "r+")
+      fs.writeFileSync(pending_name, buf)
+      fd = fs.openSync(pending_name, "r+")
     }
 
     if (start >= file.size) {
@@ -211,17 +210,28 @@ const prompt = require('prompt');
 
     let timeout;
 
-    res.on("end", function (e) {
+    res.on("end", function () {
       if (!active) {
         kill()
         return
       }
       logUpdate(`downloading: ${Size(start)} - ${Size(file.size)}`)
-      // logUpdate.done()
       title(`downloading: done!`)
       byteSize("D")
       close()
       setFile()
+    })
+
+    res.on("timeout", function () {
+      logUpdate("retry from: " + Size(start))
+      close()
+      __foo(...arg)
+    })
+
+    res.on("error", function () {
+      logUpdate("An Error occured.\nNow retrying: " + Size(start))
+      close()
+      __foo(...arg)
     })
 
     res.on("data", function (e) {
@@ -231,30 +241,20 @@ const prompt = require('prompt');
       }
       write(e)
       logUpdate(`downloading: ${Size(start, true)} - ${Size(file.size)} - (speed: ${Size(e.length)})`)
-      const pStart = start
-      clearTimeout(timeout)
-      timeout = setTimeout(() => {
-        if (res.closed || res.destroyed) return
-        if (start === pStart) {
-          logUpdate("retry from: " + Size(start))
-          res.destroy()
-          close()
-          __foo(...arg)
-        }
-      }, 25000)
     })
     return prom
   }
 
   const arg = { _service: service }
 
+  let _app_data;
   let app_data;
   if (!fs.existsSync(app_data_path)) {
-    app_data = await listFilesOnly(arg)
+    _app_data = app_data = await listFilesOnly(arg)
     fs.writeFileSync(app_data_path, JSON.stringify(app_data))
   } else {
     app_data = fs.readFileSync(app_data_path)
-    app_data = JSON.parse(app_data)
+    _app_data = app_data = JSON.parse(app_data)
   }
   function setDataSet() {
     let n = parseInt(prvn % max_page);
@@ -264,6 +264,11 @@ const prompt = require('prompt');
     render.check(prvn)
     // print(`n:${n}, prvn:${prvn}, ${!(!app_data[prvn])}, ${pageId}`)
     app_data[prvn] && setItem(app_data[prvn], prvn, true)
+    if (app_data.length) {
+      num(usr_ipt)
+    } else {
+      num(false)
+    }
   }
 
   function render() {
@@ -337,13 +342,13 @@ const prompt = require('prompt');
     }
     return render()
   }
-  function close() {
+  function close(blk, noDrop) {
     busy = active = CMD = false
-    print.add("home_cmd", HC)
+    print.add("home_cmd", blk ? "" : HC)
     print.add("header", "")
     print.add("title", "")
     print.add("body", "")
-    print.drop()
+    !noDrop && print.drop()
     //data = app_data[prvn]
     //data && setItem(data, prvn)
   }
@@ -353,12 +358,11 @@ const prompt = require('prompt');
     if (n <= 0 || n > max_page) {
       return
     }
+    const msg = `${chalk.bgBlue(key + ")")} ${s ? chalk.bgYellow(name) : name}\n`
     if (int) {
-      print.add("item-" + (n),
-        `${chalk.blue((key) + ")")} ${s ? chalk.yellow(name) : name}\n`)
+      print.add("item-" + (n), msg)
     } else {
-      print("item-" + (n),
-        `${chalk.blue((key) + ")")} ${s ? chalk.yellow(name) : name}\n`)
+      print("item-" + (n), msg)
     }
   }
 
@@ -366,7 +370,7 @@ const prompt = require('prompt');
     fille = null
     let n = Number(usr_ipt);
     usr_ipt = ""
-    print("input", IC)
+    num(false)
     if (!n) return close();
     n -= 1;
     const data = app_data[n];
@@ -376,41 +380,53 @@ const prompt = require('prompt');
     d = parseInt(d)
     if (d !== pageId) {
       pageId = d
-      print(d)
       render()
     }
     if (prvn >= 0) setItem(app_data[prvn], prvn)
     prvn = n
-    file = data
+    // file = data
     setItem(data, n, true)
-    CMD = true
-    active = true
-    print("home_cmd", EC)
+    // CMD = true
+    // active = true
+    // print("home_cmd", EC)
+  }
+
+  function num(usr_ipt) {
+    if (usr_ipt === false) {
+      print("input", chalk`{gray ~}{bgBlue.italic ${IC}}{gray ~}`)
+    } else {
+      print("input", chalk`{gray ~}{bgBlue.bold ${usr_ipt}}{gray ~}`)
+    }
   }
 
 
-
-  const IC = "Type..."
-  const HC = `
-  [Ctrl+N]: Next page
-  [Ctrl+P]: previous page
-  [Ctrl+R]: Refresh page
+  const IC = chalk`Type...`
+  const HC = chalk`
+  [{yellow Ctrl}+{yellow Right}]: Next page
+  [{yellow Ctrl}+{yellow Left}]: Previous page
+  [{yellow Ctrl}+{yellow UP}]: Move Up
+  [{yellow Ctrl}+{yellow Down}]: Move Down
+  {gray ---}
+  [{yellow Ctrl}+{yellow R}]: Refresh page
+  [{yellow Ctrl}+{yellow D}]: Download
+  [{yellow Ctrl}+{yellow F}]: Info
+  {gray ---}
+  [{yellow Ctrl}+{yellow S}]: Search Input
+  [{yellow Ctrl}+{yellow Z}]: Return Home
+  {gray ---}
+  [{yellow enter}]: Select
+  [{yellow delete}]
   `
-  const BS = "[esc]: escape"
-  const IV = `Invalid Command.\n${BS}`
-  const EC = `
-  Enter Command
-  [Ctrl+D]: download,
-  [Ctrl+F]: info, 
-  [delete], 
-  [enter]: execute input, 
-  [esc]: cancel`
+  const BS = chalk`[{yellow esc}]: escape`
+  const IV = chalk`{red Invalid Command}.\n${BS}`
+  const ER = chalk`{red Empty Result}.\n${BS}`
+  const ES = `${BS}`
 
   //#region 
   keypress(process.stdin)
   let key_cmd = {
     escape: () => {
-      if (!escapable) return print("body", "This process will automatically exit once done, untill then please hold");
+      if (!escapable) return print("body", "This process should automatically exit once done, untill then please hold");
       close()
     },
     return: () => {
@@ -421,25 +437,16 @@ const prompt = require('prompt');
       }
     },
     main: {
-      n: () => {
-        render.next()
-        const data = app_data[prvn]
-        data && setItem(data, prvn, true)
-
-      },
-      p: () => {
-        render.prev()
-        const data = app_data[prvn]
-        data && setItem(data, prvn, true)
-      },
       r: async () => {
-        print("header", "Refresh")
-        print("title", "Sorting Data")
+        print.add("home_cmd", ES)
+        print.add("header", "Refresh")
+        print.add("title", "Sorting Data")
         print("body", "Please wait, this should not take long")
+        const id = thd.id += 1
 
         escapable = false;
         try {
-          app_data = await listFilesOnly(arg)
+          app_data = _app_data = await listFilesOnly(arg)
           thd.once("message", data => {
             escapable = true;
             close()
@@ -448,7 +455,7 @@ const prompt = require('prompt');
           thd.postMessage({
             id,
             type: "refresh",
-            app_data
+            _app_data
           })
 
         } catch (err) {
@@ -459,6 +466,23 @@ const prompt = require('prompt');
       },
       return: () => {
         send()
+      },
+      s: () => {
+        let s = usr_ipt.toString().toLowerCase().trim();
+        const rst = [];
+        app_data.map(v => v.name.toLowerCase().includes(s) && rst.push(v))
+        app_data = rst
+        prvn = pageId = 0;
+        setDataSet()
+        if (rst.length === 0) {
+          print("home_cmd", ER)
+        }
+      },
+      z: () => {
+        app_data = _app_data
+        prvn = pageId = 0;
+        close()
+        setDataSet()
       },
       up: () => {
         const m = (pageId * max_page)
@@ -475,7 +499,7 @@ const prompt = require('prompt');
         prvn = n
         setItem(data, prvn, true)
         usr_ipt = prvn + 1
-        print("input", `~${chalk.bgBlue.bold(usr_ipt)}~`)
+        num(usr_ipt)
       },
       down: () => {
         const m = (pageId * max_page) + max_page
@@ -490,14 +514,14 @@ const prompt = require('prompt');
         prvn = n
         setItem(data, prvn, true)
         usr_ipt = prvn + 1
-        print("input", `~${chalk.bgBlue.bold(usr_ipt)}~`)
+        num(usr_ipt)
       },
       left: () => {
         if (render.prev(prvn - max_page) && app_data[prvn]) {
           const data = app_data[prvn]
           setItem(data, prvn, true)
           usr_ipt = prvn + 1
-          print("input", `~${chalk.bgBlue.bold(usr_ipt)}~`)
+          num(usr_ipt)
         }
 
       },
@@ -506,19 +530,21 @@ const prompt = require('prompt');
           const data = app_data[prvn]
           setItem(data, prvn, true)
           usr_ipt = prvn + 1
-          print("input", `~${chalk.bgBlue.bold(usr_ipt)}~`)
+          num(usr_ipt)
 
         }
       },
     },
     file: {
       d: () => {
-        print("header", "Initializing Download")
-        // print("title", "Resolving...")
+        active = true
+        print.add("header", "Initializing Download")
+        print("body","Looking up file")
         download(file.id).then(() => {
           // print("header", "")
           // print("title", "")
           print("body", "")
+          active = busy = false
         })
       },
       f: () => {
@@ -529,6 +555,7 @@ const prompt = require('prompt');
               modifiedTime: ${file.modifiedTime}
               mimeType: ${file.mimeType}
               `)
+        busy = false
       },
       delete: async () => {
         escapable = false;
@@ -537,18 +564,31 @@ const prompt = require('prompt');
         print("body", "Please wait, this should not take long")
         const id = thd.id += 1
         const del = await deleteFile(file.id, arg)
-        if (!del) print("title", "Looks like this file no longer exist")
-        thd.once("message", data => {
-          app_data = data
+        if (del === false) {
+          print("title", "Looks like this file no longer exist")
+        } else if (typeof del === "string") {
+          print("title", del)
+          print("body", "")
           escapable = true;
-          close()
+          busy = false
+          setDataSet()
+          return
+        }
+        thd.once("message", data => {
+          _app_data = data._app_data
+          app_data = data.app_data
+          escapable = true;
+          busy = false
+          // close()
+        print("body", "Successfully Deleted!")
           setDataSet()
         })
         thd.postMessage({
           id,
           type: "delete",
           index: file.id,
-          app_data
+          app_data,
+          _app_data
         })
       },
       return: () => {
@@ -567,18 +607,18 @@ const prompt = require('prompt');
   let usr_ipt = "";
   let busy = false
   data_set = [];
-  const max_page = 10;
+  const max_page = 5;
   let pageId = 0;
   let pageKey = 0;
 
   var t;
-  setDataSet()
 
-  print("input", IC)
+  setDataSet()
   print("home_cmd", HC)
   print("header", "")
   print("title", "")
   print("body", "")
+
   //#endregion
 
   process.stdin.on("keypress", async (ch, arg) => {
@@ -589,10 +629,11 @@ const prompt = require('prompt');
       key_cmd.escape()
       return
     }
-    if (name === "return") {
-      key_cmd.return();
-      return
-    }
+    // if (name === "return") {
+    //   key_cmd.return();
+    //   return
+    // }
+    // print("--",`name:${name}-ch:${ch}-ctrl:${ctrl},\n${JSON.stringify(arg)}`)
 
     if (!ctrl) {
       if (name === "backspace") {
@@ -601,33 +642,42 @@ const prompt = require('prompt');
       } else {
         usr_ipt += ch || ""
       }
-      print("input", usr_ipt.trim() || IC)
+      num(usr_ipt.trim() || false)
     }
 
 
 
     if (busy) return;
-    if (CMD) {
-      busy = true
-      if (ctrl) {
-        if (key_cmd.file[name]) {
-          key_cmd.file[name]()
-        } else {
-          print("home_cmd", IV)
-          return
-        }
-      } else if (name === "delete") {
-        key_cmd.file.delete()
-      }
-      print("home_cmd", BS)
-      return
-    }
+
+
 
     if (ctrl) {
       if (key_cmd.main[name]) {
+        close()
         key_cmd.main[name]()
         return
+      } else if (key_cmd.file[name]) {
+        file = app_data[prvn]
+        if (!file) return
+        close(true, true)
+        print("home_cmd", ES)
+        busy = true
+        await key_cmd.file[name]()
+        return
+      } else {
+        print("home_cmd", IV)
       }
+    } else if (name === "delete") {
+      file = app_data[prvn]
+      if (!file) return
+      close(true, true)
+      print("home_cmd", ES)
+      busy = true
+      await key_cmd.file.delete()
+      return
+    } else if (name === "return") {
+      key_cmd.main.return();
+      return
     }
   })
   process.stdin.setRawMode(true)

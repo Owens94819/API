@@ -125,7 +125,7 @@ const { EventEmitter } = require('stream');
     }
     function write(data) {
       let res;
-      writing=new Promise(r=>res=r)
+      writing = new Promise(r => res = r)
       if (data instanceof Buffer) {
         fs.writeSync(fd, data, 0, null, fds + start)
       } else {
@@ -134,7 +134,7 @@ const { EventEmitter } = require('stream');
       start += data.length;
       byteSize(start)
       res()
-      writing=void 0;
+      writing = void 0;
     }
     function kill() {
       res && res.destroy();
@@ -149,6 +149,10 @@ const { EventEmitter } = require('stream');
     let fd;
     let resolve;
     let reject;
+    let start;
+    let origin_exist;
+    let fds;
+
     event.once("cancel", kill)
 
 
@@ -162,6 +166,7 @@ const { EventEmitter } = require('stream');
       resolve = prom_h[0]
       reject = prom_h[1]
     }
+
     const __foo__ = arguments.callee
     const __foo = function () {
       event.off("cancel", kill)
@@ -182,13 +187,14 @@ const { EventEmitter } = require('stream');
     }
     if (!file) {
       resolve()
-      return log("file not found")
+      log("file not found")
+      return prom;
     }
     const origin_name = path.join(_path, file.name);
     const pending_name = origin_name + ".pending";
 
-    let start = 0,
-      _exist = fs.existsSync(origin_name),
+      start = 0,
+      origin_exist = fs.existsSync(origin_name),
       fds = (file.size + "").length;
 
     if (fs.existsSync(pending_name)) {
@@ -204,11 +210,14 @@ const { EventEmitter } = require('stream');
     } else {
       const buf = Buffer.alloc(fds)
       buf.fill(" ").write("0")
-      if (_exist) {
+      if (origin_exist) {
         log("Waiting for input...")
         logUpdate("")
         const val = await prompt("file exist, want to conti..(y/n)")
-        if (val.trim().toLowerCase() !== "y") return logUpdate("terminated"), resolve();
+        if (val.trim().toLowerCase() !== "y"){
+          logUpdate("terminated"), resolve();
+          return prom
+        } 
       } else {
         fs.writeFile(origin_name, Buffer.alloc(file.size), err => {
           if (err) log(err)
@@ -222,20 +231,21 @@ const { EventEmitter } = require('stream');
       logUpdate(`done: ${Size(start)}`)
       byteSize("D")
       setFile()
-      resolve()
       return prom
     }
 
     log(file.name)
+
     async function fetch() {
-      if(writing) await writing;
-      
-      const req = await getPortionOfFile(id, { startByte: start, endByte: file.size, _service: service }).catch(err => { log(err) });
+      if (writing) await writing;
+
+      const req = await getPortionOfFile(id, {MAX_BUFFER:600_000, TIMEOUT:40_000, startByte: start, endByte: file.size, _service: service }).catch(err => { log(err) });
 
       if (!req || !req.stream) {
         close()
         logUpdate("retring" + pg())
-        return __foo(...arg)
+        setTimeout(fetch, 1000)
+        return
       }
       res = req.stream
 

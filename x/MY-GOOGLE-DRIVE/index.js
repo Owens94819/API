@@ -2,20 +2,21 @@
 const { token, credentials } = JSON.parse(ENV["google-drive"] || ENV["google_drive"]);
 const fs = require('fs');
 const proto = { https: require('https'), http: require('http') };
+
 const { GoogleAuth } = require('google-auth-library');
 const { google } = require('googleapis');
+const { OAuth2: OAuth2Client } = google.auth;
 
 const mimeType = require('mime-types');
-const { OAuth2: OAuth2Client } = google.auth;
 const URL = require('url');
 const xfetch = require('../../xfetch');
 const { log } = require('console');
+
 setToken(token);
-
-
 
 const oauth2Client = new OAuth2Client(token.client_id, token.client_secret)
 oauth2Client.setCredentials(token);
+
 const service = google.drive({ version: 'v3', auth: oauth2Client });
 
 const defaultFolderName = "my plan"
@@ -238,7 +239,7 @@ exp.__getPortionOfFile = async function (fileId, { startByte, endByte, _service:
 
   return response;
 }
-exp.getPortionOfFile = async function (fileId, { startByte, endByte, _service: { context: { _options: { auth } } } }) {
+exp.getPortionOfFile = async function (fileId, { startByte, endByte,MAX_BUFFER,TIMEOUT _service: { context: { _options: { auth } } } }) {
   let fields = "";
   let url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&fields=${fields}`;
   const headers = {
@@ -249,8 +250,10 @@ exp.getPortionOfFile = async function (fileId, { startByte, endByte, _service: {
   const req = await xfetch(url, {
     headers,
     method: "GET",
-    MAX_BUFFER: 600_000
+    MAX_BUFFER,
+    TIMEOUT
   })
+
   if (!req.status || req.status > 400) {
     throw new Error(`Failed to download the portion of the file. Status: ${req.code}`);
   }

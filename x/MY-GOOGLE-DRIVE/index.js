@@ -74,7 +74,7 @@ exp.createFile = async function ({ stream, q, name, type, _service, obj }, cb) {
     body: stream,
     resumable: true
   };
-  cb.onUploadProgress && cb.onUploadProgress('creating')
+  cb.onUploadProgress &&  cb.onUploadProgress({ bytesRead:-1 })
   if (!q.prog) cb = void 0;
   const file = await _service.files.create({
     requestBody,
@@ -89,7 +89,7 @@ exp.updateFile = async function (fileId, { stream, q, type, _service }, cb) {
     body: stream,
     resumable: true
   };
-  cb.onUploadProgress && cb.onUploadProgress('updating')
+  cb.onUploadProgress && cb.onUploadProgress({ })
   if (!q.prog) cb = void 0;
   const file = await _service.files.update({
     fileId,
@@ -239,7 +239,7 @@ exp.__getPortionOfFile = async function (fileId, { startByte, endByte, _service:
 
   return response;
 }
-exp.getPortionOfFile = async function (fileId, { startByte, endByte,MAX_BUFFER,TIMEOUT _service: { context: { _options: { auth } } } }) {
+exp.getPortionOfFile = async function (fileId, { startByte, endByte,MAX_BUFFER,TIMEOUT, _service: { context: { _options: { auth } } } }) {
   let fields = "";
   let url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&fields=${fields}`;
   const headers = {
@@ -264,7 +264,6 @@ exp.setPortionOfFile = async function (fileId, { startByte, endByte, _service: {
   return null
 }
 exp.uploadBasic = async function ({ name, q, type, obj }) {
-  if (!type) type = mimeType.lookup(name) || "application/octet-stream";
 
   try {
     const fileId = (await exp.findFileByName(...arguments))?.id;
@@ -344,7 +343,7 @@ exp.Response = async function (req, res) {
 
     const request = await xfetch(url, { MAX_BUFFER: 2_000_000, TIMEOUT: 40_000 })
     if (request.ok) {
-      if (!type) type = (request.headers["content-type"] || "");
+      if (!type) type = (request.headers.get("content-type") || "");
 
       let _type = type.replace(/\;[^]+$/, "").trim();
       const iv = /[^(a-z)(0-9)_\-.@]/ig;
@@ -361,6 +360,8 @@ exp.Response = async function (req, res) {
           name += "." + ext;
         }
       }
+      if (!type) type = mimeType.lookup(name) || "application/octet-stream"
+
       q.prog = (q.prog || "").includes("y")
       const file = await exp.uploadBasic({ stream: request.stream, q, name, type, _service, obj: msg }, {
         onUploadProgress: (progressEvent) => {

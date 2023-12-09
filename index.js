@@ -17,14 +17,38 @@ const express = require("express"),
   prompt = require("prompt"),
   url = require("url"),
   http = require("http"),
-  https = require("https"),
-  server = app.listen(ENV.PORT||void 0, () => {
+  https = require("https");
+
+globalThis._require = _require; 
+_require.module = {};
+function _require(md, key) {
+  const _md = md.toLowerCase();
+  if (!_require.module.hasOwnProperty(_md)) {
+    if (key) {
+      const res = _require.module[_md] = require(md);
+      _require.module[_md] = res[key]
+      return res
+    } else {
+      return _require.module[_md] = require(md);
+    }
+  }
+  return _require.module[_md];
+}
+TEST = false;
+globalThis.ENV = ENV;
+globalThis.express = express;
+
+ if(ENV.dev==="cmd"){
+     require('./test/drive-api.js')
+  }else{
+  const server = app.listen(ENV.PORT||void 0, () => {
     var port = server.address().port;
     puts(`http://localhost:${port}\n-----------`);
     if(ENV.dev){
      require('./test/drive-api.js')
   }
   });
+}
   app.use("/test_xfetch",(req, res, next) => {
     res.write("jjjjjj")
   });
@@ -45,24 +69,9 @@ app.use((req, res) => {
   })
 });
  
-TEST = false;
-globalThis.ENV = ENV;
-globalThis.express = express;
-globalThis._require = _require; 
-_require.module = {};
-function _require(md, key) {
-  const _md = md.toLowerCase();
-  if (!_require.module.hasOwnProperty(_md)) {
-    if (key) {
-      const res = _require.module[_md] = require(md);
-      _require.module[_md] = res[key]
-      return res
-    } else {
-      return _require.module[_md] = require(md);
-    }
-  }
-  return _require.module[_md];
-}
+
+
+
 
 
 // ENV.dev=""

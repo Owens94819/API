@@ -234,15 +234,14 @@ const { EventEmitter } = require('stream');
       return prom
     }
 
-    log(file.name)
-
+    
     async function fetch() {
       if (writing) await writing;
-
-      const req = await getPortionOfFile(id, {MAX_BUFFER:600_000, TIMEOUT:40_000, startByte: start, endByte: file.size, _service: service }).catch(err => { log(err) });
+      
+      log(file.name)
+      const req = await getPortionOfFile(id, {MAX_BUFFER:1500_000, TIMEOUT:40_000, startByte: start, endByte: file.size, _service: service }).catch(err => { log(err) });
 
       if (!req || !req.stream) {
-        close()
         logUpdate("retring" + pg())
         setTimeout(fetch, 1000)
         return
@@ -251,7 +250,6 @@ const { EventEmitter } = require('stream');
 
 
       logUpdate(`pending: ${Size(start)} - ${Size(file.size, true)}`);
-
 
       res.on("end", function () {
         logUpdate(`downloading: ${Size(start)} - ${Size(file.size)}`)
@@ -624,14 +622,16 @@ const { EventEmitter } = require('stream');
             }
           }
         })
-        download(file.id, null, null, puts).then(() => {
-          // puts("header", "")
-          // puts("title", "")
-          puts("body", "Download Resolved")
-          busy = false
-        }).catch(err => {
-          puts("body", "Download Error: " + err)
-        })
+        try {
+          download(file.id, null, null, puts).then(() => {
+            puts("body", "Download Resolved")
+            busy = false
+          }).catch(err => {
+            puts("body", "Download Error: " + err)
+          })
+        } catch (error) {
+          puts("body", "Download Error(2): " + error)
+        }
       },
       f: (puts) => {
         puts("body", `

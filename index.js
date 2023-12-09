@@ -4,7 +4,7 @@ const { WriteStream, ReadStream } = require('node:fs');
 const { Stream, Duplex, Readable } = require('node:stream');
 const net = require('node:net');
 const { EventEmitter } = require('node:events');
-puts=print = require('./xlog.js');
+puts = print = require('./xlog.js');
 xfetch = require('./xfetch.js');
 
 
@@ -19,8 +19,12 @@ const express = require("express"),
   http = require("http"),
   https = require("https");
 
-globalThis._require = _require; 
+TEST = false;
+globalThis.ENV = ENV;
+globalThis.express = express;
+globalThis._require = _require;
 _require.module = {};
+
 function _require(md, key) {
   const _md = md.toLowerCase();
   if (!_require.module.hasOwnProperty(_md)) {
@@ -34,31 +38,27 @@ function _require(md, key) {
   }
   return _require.module[_md];
 }
-TEST = false;
-globalThis.ENV = ENV;
-globalThis.express = express;
 
- if(ENV.dev==="cmd"){
-     require('./test/drive-api.js')
-  }else{
-  const server = app.listen(ENV.PORT||void 0, () => {
+
+if (ENV.dev === "cmd") {
+  require('./test/drive-api.js')
+} else {
+  const server = app.listen(ENV.PORT || void 0, () => {
     var port = server.address().port;
     puts(`http://localhost:${port}\n-----------`);
-    if(ENV.dev){
-     require('./test/drive-api.js')
-  }
+    if (ENV.dev) require('./test/drive-api.js')
   });
 }
-  app.use("/test_xfetch",(req, res, next) => {
-    res.write("jjjjjj")
-  });
+app.use("/test_xfetch", (req, res, next) => {
+  res.write("mic, check-up")
+});
 
 app.use((req, res, next) => {
   try {
     var md = "./x" + req.path.toUpperCase().replace(/\\$|\/$|$/, "/index.js")
     _require(md)(req, res, next);
   } catch (e) {
-    puts("console",e);
+    puts("console", e);
     next()
   }
 });
@@ -68,7 +68,7 @@ app.use((req, res) => {
     status: 0
   })
 });
- 
+
 
 
 

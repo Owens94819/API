@@ -5,24 +5,26 @@ const keypress = require('keypress');
 const { Worker, MessageChannel } = require('node:worker_threads');
 const prompt = require('prompt');
 const { EventEmitter } = require('stream');
+const LocalStorage = require('./localStorage.js');
 // const { escape } = require('querystring');
 // const { send, kill } = require('process');
 
 // const logUpdate = require('log-update');
 (async () => {
-  const app_data_path = ".bin/app-data.json";
-  const _path = ".bin/downloads"
+  const app_data_path = "temp/app-data.json";
+  const app_localStorage_path = "temp/localStorage";
+  const _path = "temp/downloads"
 
-  const thd = new Worker("./test/data.worker.js", {
+  const localStorage = new LocalStorage(app_localStorage_path)
+
+  const thd = new Worker("./cli/data.worker.js", {
     workerData: {
       _path,
       app_data_path
     }
   })
-  thd.id = 0;
 
-  // return
-  // const { default: logUpdate } = await import('log-update')
+  thd.id = 0;
 
   function pg(n) {
     if (n || pg.i.length > 3) {
@@ -85,8 +87,11 @@ const { EventEmitter } = require('stream');
     }
     function setFile() {
       event.off("cancel", kill)
-      pg(true)
+      if (!fs.existsSync(origin_name)) {
+        fs.writeFileSync(origin_name, "")
+      }
 
+      pg(true)
       const d = setInterval(() => {
         logUpdate("setting " + file.name.substring(0, 35) + pg())
       }, 200)
@@ -176,7 +181,11 @@ const { EventEmitter } = require('stream');
     const arg = [id, prom_h, prom, puts]
 
     try {
-      file = await findFileById({ _service: service, id })
+      if (typeof id === "object"&&id.id) {
+        file = id
+      } else {
+        file = await findFileById({ _service: service, id })
+      }
       file.size = Number(file.size)
     } catch (error) {
       logUpdate("Retring: file-id-err" + pg())
@@ -190,10 +199,12 @@ const { EventEmitter } = require('stream');
       log("file not found")
       return prom;
     }
+
+    if (!fs.existsSync(_path)) fs.mkdirSync(_path)
     const origin_name = path.join(_path, file.name);
     const pending_name = origin_name + ".pending";
 
-      start = 0,
+    start = 0,
       origin_exist = fs.existsSync(origin_name),
       fds = (file.size + "").length;
 
@@ -213,11 +224,11 @@ const { EventEmitter } = require('stream');
       if (origin_exist) {
         log("Waiting for input...")
         logUpdate("")
-        const val = await prompt("file exist, want to conti..(y/n)")
-        if (val.trim().toLowerCase() !== "y"){
+        const val = await prompt("file exist, wish to overwrite? (y/n)")
+        if (val.trim().toLowerCase() !== "y") {
           logUpdate("terminated"), resolve();
           return prom
-        } 
+        }
       } else {
         fs.writeFile(origin_name, Buffer.alloc(file.size), err => {
           if (err) log(err)
@@ -234,12 +245,12 @@ const { EventEmitter } = require('stream');
       return prom
     }
 
-    
+
     async function fetch() {
       if (writing) await writing;
-      
+
       log(file.name)
-      const req = await getPortionOfFile(id, {MAX_BUFFER:1500_000, TIMEOUT:40_000, startByte: start, endByte: file.size, _service: service }).catch(err => { log(err) });
+      const req = await getPortionOfFile(id, { MAX_BUFFER: 1500_000, TIMEOUT: 40_000, startByte: start, endByte: file.size, _service: service }).catch(err => { log(err) });
 
       if (!req || !req.stream) {
         logUpdate("retring" + pg())
@@ -290,26 +301,38 @@ const { EventEmitter } = require('stream');
     _app_data = app_data = JSON.parse(app_data)
   }
   function setDataSet() {
-    let n = parseInt(prvn % max_page);
-    n = n < 0 ? 0 : n;
-    prvn = (pageId * max_page) + n
-    usr_ipt = prvn + 1
-    render.check(prvn)
-    // puts(`n:${n}, prvn:${prvn}, ${!(!app_data[prvn])}, ${pageId}`)
-    app_data[prvn] && setItem(app_data[prvn], prvn, true)
-
+    usr_ipt = pageCurrentIndex
+    pageCurrentIndex -= 1
+    render.check(pageCurrentIndex)
+    app_data[pageCurrentIndex] && setItem(app_data[pageCurrentIndex], pageCurrentIndex, true)
     puts.add("input_header", IH)
-    if (app_data.length) {
+    if (getMaxIndex()) {
       num(usr_ipt)
     } else {
       num(false)
     }
   }
 
+  function getPageId(n = pageCurrentIndex) {
+    let pageId = n / max_page_index;
+    pageId = parseInt(pageId)
+    return pageId
+  }
+  function getMaxIndex() {
+    return app_data.length ? Number(app_data.length - 1) : 0;
+  }
+  function maxPage() {
+    var len = (getMaxIndex()) / max_page_index
+    if (len.toString().includes(".")) {
+      len = parseInt(len)
+    }
+    return len
+  }
   function render() {
-    var id = pageId * max_page;
+    const pageId = getPageId();
+    var id = pageId * max_page_index;
     let _i = 0;
-    for (let i = id; i < (id + max_page); i++) {
+    for (let i = id; i < (id + max_page_index); i++) {
       _i += 1;
       if (!app_data[i]) {
         puts.add("item-" + (_i), "")
@@ -320,60 +343,53 @@ const { EventEmitter } = require('stream');
     puts.drop();
     return true
   }
+
   render.i = 0
 
-  render.len = () => {
-    var len = app_data.length / max_page
-    if (len.toString().includes(".")) {
-      len = parseInt(len) + 1
-    }
-    return len
-  }
-  render.next = (_prvn) => {
-    pageId += 1
-    if (pageId >= render.len()) {
-      pageId -= 1
-      return
-    }
-    if (typeof _prvn === "number" && app_data[_prvn]) {
-      prvn = _prvn
+  render.next = (_pageCurrentIndex) => {
+    pageCurrentIndex += max_page_index
+    if (pageCurrentIndex > getMaxIndex()) {
+      pageCurrentIndex = getMaxIndex()
     } else {
-      let n = (max_page - 1)
-      prvn = (pageId * max_page) + n
+      if (typeof _pageCurrentIndex === "number" && app_data[_pageCurrentIndex]) {
+        pageCurrentIndex = _pageCurrentIndex
+      } else {
+        const pageId = getPageId();
+        let n = (max_page_index - 1)
+        pageCurrentIndex = (pageId * max_page_index) + n
 
-      while (!app_data[prvn] && app_data.length > 0) {
-        n -= 1
-        prvn = (pageId * max_page) + n
+        while (!app_data[pageCurrentIndex] && getMaxIndex() > 0) {
+          n -= 1
+          pageCurrentIndex = (pageId * max_page_index) + n
+        }
       }
-    }
-
-    return render()
-  }
-  render.prev = (_prvn) => {
-    pageId -= 1
-    if (pageId < 0) {
-      pageId = 0
-      return
-    }
-    if (typeof _prvn === "number" && app_data[_prvn]) {
-      prvn = _prvn
-    } else {
-      prvn = (pageId * max_page) + (max_page - 1)
-
     }
     return render()
   }
-  render.check = (_prvn) => {
-    if (pageId > render.len()) {
-      while (render.len() >= pageId && pageId > 0) {
-        pageId -= 1
+  render.prev = (_pageCurrentIndex) => {
+    pageCurrentIndex -= max_page_index
+    if (pageCurrentIndex < 0) {
+      pageCurrentIndex = 0
+    } else {
+      const pageId = getPageId();
+
+      if (typeof _pageCurrentIndex === "number" && app_data[_pageCurrentIndex]) {
+        pageCurrentIndex = _pageCurrentIndex
+      } else {
+        pageCurrentIndex = (pageId * max_page_index) + (max_page_index - 1)
+
       }
     }
-    if (typeof _prvn === "number" && app_data[_prvn]) {
-      prvn = _prvn
+    return render()
+  }
+  render.check = (_pageCurrentIndex) => {
+    while (pageCurrentIndex > getMaxIndex() && (pageCurrentIndex > 0 || (pageCurrentIndex = 0))) {
+      pageCurrentIndex -= max_page_index
+    }
+    if (typeof _pageCurrentIndex === "number" && app_data[_pageCurrentIndex]) {
+      pageCurrentIndex = _pageCurrentIndex
     } else {
-      prvn = (pageId * max_page)
-
+      pageCurrentIndex = (getPageId() * max_page_index)
     }
     return render()
   }
@@ -390,10 +406,11 @@ const { EventEmitter } = require('stream');
   }
   function setItem({ name }, key, s, int) {
     key += 1;
-    const n = key - (pageId * max_page)
-    if (n <= 0 || n > max_page) {
+    const n = key - (getPageId() * max_page_index)
+    if (n <= 0 || n > max_page_index) {
       return
     }
+    if (s) localStorage.setItem("pageCurrentIndex", pageCurrentIndex + 1)
     const msg = `${chalk.bgBlue(key + ")")} ${s ? chalk.bgYellow(name) : name}\n`
     if (int) {
       puts.add("item-" + (n), msg)
@@ -403,6 +420,7 @@ const { EventEmitter } = require('stream');
   }
 
   function send() {
+    const pageId = getPageId()
     fille = null
     let n = Number(usr_ipt);
     usr_ipt = ""
@@ -411,16 +429,15 @@ const { EventEmitter } = require('stream');
     n -= 1;
     const data = app_data[n];
     if (!data) return close();
-    let d = n;
-    d = d / max_page;
-    d = parseInt(d)
+    const d = getPageId(n);
+    const _pageCurrentIndex = pageCurrentIndex;
+    pageCurrentIndex = n;
+
     if (d !== pageId) {
-      pageId = d
       render()
     }
-    if (prvn >= 0) setItem(app_data[prvn], prvn)
-    prvn = n
-    setItem(data, n, true)
+    if (_pageCurrentIndex >= 0 && _pageCurrentIndex !== pageCurrentIndex) setItem(app_data[_pageCurrentIndex], _pageCurrentIndex)
+    setItem(data, pageCurrentIndex, true)
   }
 
   function num(usr_ipt) {
@@ -546,7 +563,7 @@ const { EventEmitter } = require('stream');
               puts("home_cmd", ER)
             } else {
               app_data = rst
-              prvn = pageId = 0;
+              pageCurrentIndex = 0;
               setDataSet()
             }
             busy = false
@@ -558,56 +575,55 @@ const { EventEmitter } = require('stream');
       },
       z: (puts) => {
         app_data = _app_data
-        prvn = pageId = 0;
+        pageCurrentIndex = 0;
         close()
         setDataSet()
       },
       up: (puts) => {
-        const m = (pageId * max_page)
-        let n = prvn - 1
+        const m = (getPageId() * max_page_index)
+        let n = pageCurrentIndex - 1
         const data = app_data[n]
         if (!data) return;
         if (n < m) {
           render.prev()
         } else {
-          if (prvn >= 0) setItem(app_data[prvn], prvn)
+          if (pageCurrentIndex >= 0) setItem(app_data[pageCurrentIndex], pageCurrentIndex)
         }
-        prvn = n
-        setItem(data, prvn, true)
-        usr_ipt = prvn + 1
+        pageCurrentIndex = n
+        setItem(data, pageCurrentIndex, true)
+        usr_ipt = pageCurrentIndex + 1
         num(usr_ipt)
       },
       down: (puts) => {
-        const m = (pageId * max_page) + max_page
-        let n = prvn + 1
+        const m = (getPageId() * max_page_index) + max_page_index
+        let n = pageCurrentIndex + 1
         const data = app_data[n]
         if (!data) return;
         if (n >= m) {
           render.next()
         } else {
-          if (prvn >= 0) setItem(app_data[prvn], prvn)
+          if (pageCurrentIndex >= 0) setItem(app_data[pageCurrentIndex], pageCurrentIndex)
         }
-        prvn = n
-        setItem(data, prvn, true)
-        usr_ipt = prvn + 1
+        pageCurrentIndex = n
+        setItem(data, pageCurrentIndex, true)
+        usr_ipt = pageCurrentIndex + 1
         num(usr_ipt)
       },
       left: (puts) => {
-        if (render.prev(prvn - max_page) && app_data[prvn]) {
-          const data = app_data[prvn]
-          setItem(data, prvn, true)
-          usr_ipt = prvn + 1
+        if (render.prev(pageCurrentIndex - max_page_index) && app_data[pageCurrentIndex]) {
+          const data = app_data[pageCurrentIndex]
+          setItem(data, pageCurrentIndex, true)
+          usr_ipt = pageCurrentIndex + 1
           num(usr_ipt)
         }
 
       },
       right: (puts) => {
-        if (render.next(prvn + max_page) && app_data[prvn]) {
-          const data = app_data[prvn]
-          setItem(data, prvn, true)
-          usr_ipt = prvn + 1
+        if (render.next(pageCurrentIndex + max_page_index) && app_data[pageCurrentIndex]) {
+          const data = app_data[pageCurrentIndex]
+          setItem(data, pageCurrentIndex, true)
+          usr_ipt = pageCurrentIndex + 1
           num(usr_ipt)
-
         }
       },
     },
@@ -630,13 +646,13 @@ const { EventEmitter } = require('stream');
             puts("body", "Download Error: " + err)
           })
         } catch (error) {
-          puts("body", "Download Error(2): " + error)
+          puts("body", "Catch Download Error(2): " + error)
         }
       },
       f: (puts) => {
         puts("body", `
               name: ${file.name}
-              size: ${file.size}
+              size: ${Size(file.size)}
               id: ${file.id}
               modifiedTime: ${file.modifiedTime}
               mimeType: ${file.mimeType}
@@ -682,19 +698,17 @@ const { EventEmitter } = require('stream');
     global: []
   }
 
+  const max_page_index = localStorage.getItem('max_page_index') || 5;
+  let pageCurrentIndex = localStorage.getItem('pageCurrentIndex') || 1;
+
   let file = null;
-  let CMD = false
+  let CMD = false;
   INPUT_PAUSED = false
   let escapable = true;
 
   let usr_ipt = "";
   let busy = false
-  data_set = [];
-  const max_page = 5;
-  let pageId = 0;
-  let prvn = -1
 
-  var t;
 
   setDataSet()
   puts("home_cmd", HC)
@@ -767,7 +781,7 @@ const { EventEmitter } = require('stream');
         get_cmd().main[name](puts)
         return
       } else if (get_cmd(true).file[name]) {
-        file = app_data[prvn]
+        file = app_data[pageCurrentIndex]
         if (!file) return
         close(true, true)
         puts("home_cmd", ES)
@@ -779,7 +793,7 @@ const { EventEmitter } = require('stream');
         puts("home_cmd", IV)
       }
     } else if (name === "delete") {
-      file = app_data[prvn]
+      file = app_data[pageCurrentIndex]
       if (!file) return
       close(true, true)
       puts("home_cmd", ES)

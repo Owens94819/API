@@ -1,18 +1,13 @@
 
-const { token, credentials } = JSON.parse(ENV["google-drive"] || ENV["google_drive"]);
-const fs = require('fs');
-const proto = { https: require('https'), http: require('http') };
+const token = require("../../temp/assets/token.json");
 
 const { GoogleAuth } = require('google-auth-library');
 const { google } = require('googleapis');
 const { OAuth2: OAuth2Client } = google.auth;
 
 const mimeType = require('mime-types');
-const URL = require('url');
 const xfetch = require('../../xfetch');
-const { log } = require('console');
-
-setToken(token);
+const { log } = require('node:console');
 
 const oauth2Client = new OAuth2Client(token.client_id, token.client_secret)
 oauth2Client.setCredentials(token);
@@ -21,6 +16,7 @@ const service = google.drive({ version: 'v3', auth: oauth2Client });
 
 const defaultFolderName = "my plan"
 const parentFolderId = "root"
+
 const rootFolderId = new Promise((r, j) => {
   async function foo() {
     try {
@@ -61,6 +57,7 @@ const exp = { service, oauth2Client };
  * createdTime > '2021-01-01T00:00:00'
  * siz>2, >=, !=, and, or
  */
+
 exp.createFile = async function ({ stream, q, name, type, _service, obj }, cb) {
 
   const requestBody = {
@@ -74,7 +71,7 @@ exp.createFile = async function ({ stream, q, name, type, _service, obj }, cb) {
     body: stream,
     resumable: true
   };
-  cb.onUploadProgress &&  cb.onUploadProgress({ bytesRead:-1 })
+  cb.onUploadProgress && cb.onUploadProgress({ bytesRead: -1 })
   if (!q.prog) cb = void 0;
   const file = await _service.files.create({
     requestBody,
@@ -89,7 +86,7 @@ exp.updateFile = async function (fileId, { stream, q, type, _service }, cb) {
     body: stream,
     resumable: true
   };
-  cb.onUploadProgress && cb.onUploadProgress({ })
+  cb.onUploadProgress && cb.onUploadProgress({})
   if (!q.prog) cb = void 0;
   const file = await _service.files.update({
     fileId,
@@ -192,7 +189,7 @@ exp.deleteFile = async function (fileId, { _service }) {
     });
     return true
   } catch (error) {
-    return error;
+    return error+"";
   }
 }
 exp.downloadFile = async function (fileId, { _service, stream }) {
@@ -203,43 +200,7 @@ exp.downloadFile = async function (fileId, { _service, stream }) {
 
   return response;
 }
-exp.__getPortionOfFile = async function (fileId, { startByte, endByte, _service: { context: { _options: { auth } } } }) {
-  let fields = "";
-  let url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&fields=${fields}`;
-  const headers = {
-    'Range': `bytes=${startByte}-${endByte}`,
-    'Authorization': `Bearer ${(await auth.getAccessToken()).token}`, // Replace with your access token
-  };
-
-  let code;
-  const response = await new Promise((resolve, reject) => {
-    url = URL.parse(url)
-    // const agent=proto.https.Agent({keepAlive:true,maxSockets:1,maxFreeSockets:1})
-    // agent.defaultSocket={
-    //   highWaterMark:4096
-    // }
-    proto.https.get({
-      host: url.host,
-      hostname: url.hostname,
-      pathname: url.pathname,
-      path: url.path,
-      headers
-    }, function (res) {
-      code = res.statusCode
-      resolve(res)
-    }).on("error", function (err) {
-      console.error(err)
-      resolve()
-    })
-  })
-  //  const response = await fetch(url, { method: 'GET', headers });
-  if (!code || code > 400) {
-    throw new Error(`Failed to download the portion of the file. Status: ${code}`);
-  }
-
-  return response;
-}
-exp.getPortionOfFile = async function (fileId, { startByte, endByte,MAX_BUFFER,TIMEOUT, _service: { context: { _options: { auth } } } }) {
+exp.getPortionOfFile = async function (fileId, { startByte, endByte, MAX_BUFFER, TIMEOUT, _service: { context: { _options: { auth } } } }) {
   let fields = "";
   let url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&fields=${fields}`;
   const headers = {
@@ -302,12 +263,12 @@ exp.Response = async function (req, res) {
   }
   res.end = function (e) {
     res._end("data: " + JSON.stringify(msg) + "\n\n")
-    puts("console-3",`\n${url}\n-------`);
+    puts("console-3", `\n${url}\n-------`);
   }
 
   if (okstatus) res.status = Function();
 
-  puts("console-1",`\n---${url}\n`);
+  puts("console-1", `\n---${url}\n`);
 
 
   res.setHeader("content-type", "text/event-stream");
@@ -376,14 +337,14 @@ exp.Response = async function (req, res) {
           msg.msg = bytesRead
           msg._id = bytesRead
 
-          puts("console-2",`Uploaded ${bytesRead} bytes`);
+          puts("console-2", `Uploaded ${bytesRead} bytes`);
           res.write();
         }
       }).catch(err => err + "");
 
       if (typeof file === 'string') {
         msg.type = "error"
-        puts("console-2",msg.msg = 'Credential Error (2):' + file);
+        puts("console-2", msg.msg = 'Credential Error (2):' + file);
         res.status(206);
         res.end();
       } else {
@@ -397,7 +358,7 @@ exp.Response = async function (req, res) {
       msg.msg = "response not ok";
       res.status(206);
       res.end();
-      puts("console-2",`
+      puts("console-2", `
       ${msg.msg}
       ${request.headers}
       ${request.status}
@@ -411,11 +372,11 @@ exp.Response = async function (req, res) {
 }
 
 
-function setToken(token) {
-  token.client_id = credentials.web.client_id
-  token.client_secret = credentials.web.client_secret
-  if (!token.type) token.type = "authorized_user";
-}
+// function setToken(token) {
+//   token.client_id = credentials.web.client_id
+//   token.client_secret = credentials.web.client_secret
+//   if (!token.type) token.type = "authorized_user";
+// }
 
 
 if (TEST) {

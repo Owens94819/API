@@ -1,14 +1,21 @@
-const logs = []
+let logs = []
 const chalk = require('chalk');
 var key = () => {
     return `x-${Math.random()}-${logs.length}-${Date.now()}`
 };
-const map = {}
-let logUpdate;
+let map = {}
+let _logUpdate;
 let hold = false;
+
+async function logUpdate(){
+    if (!_logUpdate) {
+        _logUpdate = (await import('log-update')).default
+    }
+    _logUpdate(...arguments)
+}
 module.exports = print
 
-async function print(id, msg) {
+ function print(id, msg) {
     if (arguments.length <= 1) {
         msg = id;
         id = key()
@@ -23,20 +30,18 @@ async function print(id, msg) {
     // console.clear()
     // console.log(logs);
     if (!hold) {
-        await print.drop();
+         print.drop();
     }
-    return id;
+    return print;
 }
 
 print.add = function () {
     hold = true;
     print(...arguments)
     hold = false;
+    return print
 }
-print.drop = async function () {
-    if (!logUpdate) {
-        logUpdate = (await import('log-update')).default
-    }
+print.drop = function () {
     var log = ""
     logs.map(val => {
         if (typeof val === "string" && !val.trim()) return;
@@ -44,6 +49,12 @@ print.drop = async function () {
     })
     logUpdate((log))
     log = void 0;
+    return print
+}
+print.clear = function() {
+    logs=[]
+    map={}
+    return print
 }
 
 

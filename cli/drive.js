@@ -1,21 +1,20 @@
-const { log } = require('console');
+const { log } = require('node:console');
 const chalk = require('chalk');
-// log(chalk.bgBlue.bold)
 const keypress = require('keypress');
-const { Worker, MessageChannel } = require('node:worker_threads');
-const prompt = require('prompt');
-const { EventEmitter } = require('stream');
+const { Worker } = require('node:worker_threads');
+const { EventEmitter } = require('node:stream');
 const LocalStorage = require('./localStorage.js');
-// const { escape } = require('querystring');
-// const { send, kill } = require('process');
 
-// const logUpdate = require('log-update');
 (async () => {
   const app_data_path = "temp/app-data.json";
   const app_localStorage_path = "temp/localStorage";
   const _path = "temp/downloads"
 
+  let _app_data = [];
+  let app_data = _app_data;
+
   const localStorage = new LocalStorage(app_localStorage_path)
+  const event = new EventEmitter();
 
   const thd = new Worker("./cli/data.worker.js", {
     workerData: {
@@ -23,7 +22,6 @@ const LocalStorage = require('./localStorage.js');
       app_data_path
     }
   })
-
   thd.id = 0;
 
   function pg(n) {
@@ -35,6 +33,7 @@ const LocalStorage = require('./localStorage.js');
     return pg.i
   }
   pg.i = ""
+
   function Size(n, f) {
     var t;
     if (n < Size._kb) {
@@ -60,12 +59,6 @@ const LocalStorage = require('./localStorage.js');
   Size._kb = 1024
   Size._mb = Size._kb * Size._kb
   Size._gb = Size._mb * Size._mb
-
-  TEST = true
-  const md = './x/MY-GOOGLE-DRIVE/index.js';
-  const exp = _require(md, "Response");
-  const { listFiles, oauth2Client, getPortionOfFile, listFilesOnly, deleteFile, service, findFileById, findFileByName, _listFilesOnly, getLastFile } = exp;
-  TEST = false;
 
   const fs = require('fs');
   const path = require('path');
@@ -141,7 +134,8 @@ const LocalStorage = require('./localStorage.js');
       res()
       writing = void 0;
     }
-    function kill() {
+    async function kill() {
+      if (writing) await writing;
       res && res.destroy();
       (typeof fd === "number") && close();
       resolve();
@@ -181,7 +175,7 @@ const LocalStorage = require('./localStorage.js');
     const arg = [id, prom_h, prom, puts]
 
     try {
-      if (typeof id === "object"&&id.id) {
+      if (typeof id === "object" && id.id) {
         file = id
       } else {
         file = await findFileById({ _service: service, id })
@@ -248,8 +242,8 @@ const LocalStorage = require('./localStorage.js');
 
     async function fetch() {
       if (writing) await writing;
-
       log(file.name)
+
       const req = await getPortionOfFile(id, { MAX_BUFFER: 1500_000, TIMEOUT: 40_000, startByte: start, endByte: file.size, _service: service }).catch(err => { log(err) });
 
       if (!req || !req.stream) {
@@ -257,8 +251,8 @@ const LocalStorage = require('./localStorage.js');
         setTimeout(fetch, 1000)
         return
       }
-      res = req.stream
 
+      res = req.stream
 
       logUpdate(`pending: ${Size(start)} - ${Size(file.size, true)}`);
 
@@ -289,23 +283,10 @@ const LocalStorage = require('./localStorage.js');
     return prom
   }
 
-  const arg = { _service: service }
-  const event = new EventEmitter();
-  let _app_data;
-  let app_data;
-  if (!fs.existsSync(app_data_path)) {
-    _app_data = app_data = await listFilesOnly(arg)
-    fs.writeFileSync(app_data_path, JSON.stringify(app_data))
-  } else {
-    app_data = fs.readFileSync(app_data_path)
-    _app_data = app_data = JSON.parse(app_data)
-  }
   function setDataSet() {
-    usr_ipt = pageCurrentIndex
-    pageCurrentIndex -= 1
+    usr_ipt = pageCurrentIndex+1
     render.check(pageCurrentIndex)
     app_data[pageCurrentIndex] && setItem(app_data[pageCurrentIndex], pageCurrentIndex, true)
-    puts.add("input_header", IH)
     if (getMaxIndex()) {
       num(usr_ipt)
     } else {
@@ -313,6 +294,22 @@ const LocalStorage = require('./localStorage.js');
     }
   }
 
+  function setDataWrapper() {
+    for (let i = 0; i < max_page_index; i++) {
+      puts.add("item-" + (i + 1), "")
+    }
+  }
+
+  function setDefaults() {
+    puts.add("app_header", AH)
+    puts.add("input_header", IH)
+    puts.add("input", IC)
+    puts.add("home_cmd", HC)
+    puts.add("header", "")
+    puts.add("title", "")
+    puts.add("body", "")
+    return puts
+  }
   function getPageId(n = pageCurrentIndex) {
     let pageId = n / max_page_index;
     pageId = parseInt(pageId)
@@ -396,13 +393,13 @@ const LocalStorage = require('./localStorage.js');
   async function close(blk, noDrop) {
     event.emit("cancel")
     busy = active = CMD = false
+    setDefaults()
     puts.add("home_cmd", blk ? "" : HC)
-    puts.add("input_header", IH)
-
-    puts.add("header", "")
-    puts.add("title", "")
-    puts.add("body", "")
-    !noDrop && puts.drop()
+    if (noDrop) {
+      num(usr_ipt, puts.add)
+    } else {
+      num(usr_ipt)
+    }
   }
   function setItem({ name }, key, s, int) {
     key += 1;
@@ -410,7 +407,7 @@ const LocalStorage = require('./localStorage.js');
     if (n <= 0 || n > max_page_index) {
       return
     }
-    if (s) localStorage.setItem("pageCurrentIndex", pageCurrentIndex + 1)
+    if (s) localStorage.setItem("pageCurrentIndex", pageCurrentIndex)
     const msg = `${chalk.bgBlue(key + ")")} ${s ? chalk.bgYellow(name) : name}\n`
     if (int) {
       puts.add("item-" + (n), msg)
@@ -440,15 +437,16 @@ const LocalStorage = require('./localStorage.js');
     setItem(data, pageCurrentIndex, true)
   }
 
-  function num(usr_ipt) {
+  function num(usr_ipt, _puts) {
+    if (!_puts) _puts = puts
     if (usr_ipt === false) {
       let DF = IC;
       if (typeof INPUT_PAUSED === "string" && INPUT_PAUSED.trim()) {
         DF = INPUT_PAUSED;
       }
-      puts("input", chalk`{gray ~}{bgBlue.italic ${DF}}{gray ~}`)
+      _puts("input", chalk`{gray ~}{bgBlue.italic ${DF}}{gray ~}`)
     } else {
-      puts("input", chalk`{gray ~}{bgBlue.bold ${usr_ipt}}{gray ~}`)
+      _puts("input", chalk.gray("~") + chalk.bgBlue.bold(usr_ipt) + chalk.gray("~"))
     }
   }
   async function prompt(_IC) {
@@ -482,6 +480,9 @@ const LocalStorage = require('./localStorage.js');
     })
   }
 
+  const max_page_index = localStorage.getItem('max_page_index') || 5;
+
+  const AH = ""
   const IH = ""
   const IC = chalk`Type...`
   const HC = chalk`
@@ -504,6 +505,10 @@ const LocalStorage = require('./localStorage.js');
   const IV = chalk`{red Invalid Command}.\n${BS}`
   const ER = chalk`{red Empty Result}.\n${BS}`
   const ES = `${BS}`
+
+  puts.add("app_header", "")
+  setDataWrapper()
+  setDefaults().drop()
 
   //#region 
   keypress(process.stdin)
@@ -575,7 +580,7 @@ const LocalStorage = require('./localStorage.js');
       },
       z: (puts) => {
         app_data = _app_data
-        pageCurrentIndex = 0;
+        pageCurrentIndex = 1;
         close()
         setDataSet()
       },
@@ -661,13 +666,18 @@ const LocalStorage = require('./localStorage.js');
       },
       delete: async (puts) => {
         escapable = false;
-        puts("header", file.name)
-        puts("title", "Deleting...")
-        puts("body", "Please wait, this should not take long")
+        puts.add("header", file.name)
+        .add("title", "Deleting...")
+        .add("body", "Please wait, this should not take long")
+        .drop()
         const id = thd.id += 1
         const del = await deleteFile(file.id, arg)
         if (del === false) {
-          puts("title", "Looks like this file no longer exist")
+          puts("body", "Looks like this file no longer exist")
+          escapable = true;
+          busy = false
+          setDataSet()
+          return
         } else if (typeof del === "string") {
           puts("title", del)
           puts("body", "")
@@ -698,23 +708,15 @@ const LocalStorage = require('./localStorage.js');
     global: []
   }
 
-  const max_page_index = localStorage.getItem('max_page_index') || 5;
   let pageCurrentIndex = localStorage.getItem('pageCurrentIndex') || 1;
 
   let file = null;
   let CMD = false;
-  INPUT_PAUSED = false
+  let INPUT_PAUSED = false
+  let busy = true
   let escapable = true;
 
   let usr_ipt = "";
-  let busy = false
-
-
-  setDataSet()
-  puts("home_cmd", HC)
-  puts("header", "")
-  puts("title", "")
-  puts("body", "")
 
   //#endregion
 
@@ -759,7 +761,7 @@ const LocalStorage = require('./localStorage.js');
 
 
     if (name === "escape") {
-      key_cmd.escape()
+      key_cmd.escape(puts)
       return
     }
 
@@ -770,7 +772,7 @@ const LocalStorage = require('./localStorage.js');
       } else {
         usr_ipt += ch || ""
       }
-      num(usr_ipt.trim() || false)
+      num(usr_ipt.trim() && usr_ipt || false)
     }
 
     if (busy) return
@@ -807,4 +809,86 @@ const LocalStorage = require('./localStorage.js');
   })
   process.stdin.setRawMode(true)
   process.stdin.resume()
+
+
+
+  //#region 
+  const credentials_path = "temp/assets/credentials.json"
+  const token_path = "temp/assets/token.json"
+  if (!fs.existsSync(credentials_path)) {
+    async function crd() {
+      key_cmd.busy.push({
+        name: "return", cb: function () {
+          if (INPUT_PAUSED) {
+            event.emit("message", usr_ipt)
+          }
+        }
+      })
+      puts("app_header", chalk`can not proceed without a google api credentials.\n refer:{blue https://console.cloud.google.com/apis/} `)
+      try {
+        const credentials = JSON.parse(await prompt("Enter your json credentials"))
+        if (!credentials.web || !credentials.web.client_id || !credentials.web.client_secret) {
+          throw chalk`
+      {red invalid credentials entered, try another!.}
+      here are values the credentials show atleast have:
+     ${chalk.blue(`{
+        "web": {
+            "client_id": "*******",
+            "project_id": "*******",
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "client_secret": "*******",
+            "redirect_uris": [
+                "http://localhost:****"
+            ]
+        }
+    }`)}
+      `
+        }
+        if (!credentials.redirect_uris || !credentials.redirect_uri) {
+          throw chalk`{red no redirect url in your json credential, you should refer to your google-api to set it up}`
+        }
+        fs.writeFileSync(credentials_path, JSON.stringify(credentials))
+      } catch (error) {
+        puts("header", error + "")
+        await crd();
+      }
+    }
+    await crd();
+    setDefaults()
+    return
+  }
+
+  const auth = _require('./x/MY-GOOGLE-DRIVE/auth.js');
+  if (!fs.existsSync(token_path)) {
+    puts.add("app_header", chalk`{red no token found.} `)
+    const token = await auth.getAuthCode();
+    fs.writeFileSync(token_path, JSON.stringify({
+      "type": token.token_type,
+      "client_id": token.client_id,
+      "client_secret": token.client_secret,
+      "refresh_token": token.refresh_token
+      // "access_token": token.access_token
+    }))
+    setDefaults()
+  }
+
+  TEST = true
+  const exp = _require('./x/MY-GOOGLE-DRIVE/index.js', "Response");
+  const { listFiles, oauth2Client, getPortionOfFile, listFilesOnly, deleteFile, service, findFileById, findFileByName, _listFilesOnly, getLastFile } = exp;
+  TEST = false;
+
+  const arg = { _service: service }
+
+  if (!fs.existsSync(app_data_path)) {
+    _app_data = app_data = await listFilesOnly(arg)
+    fs.writeFileSync(app_data_path, JSON.stringify(app_data))
+  } else {
+    app_data = fs.readFileSync(app_data_path)
+    _app_data = app_data = JSON.parse(app_data)
+  }
+  //#endregion
+
+  setDataSet()
+  busy = false;
 })();

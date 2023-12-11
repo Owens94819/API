@@ -3,23 +3,22 @@ const chalk = require('chalk');
 const keypress = require('keypress');
 const { Worker } = require('node:worker_threads');
 const { EventEmitter } = require('node:stream');
-const LocalStorage = require('./localStorage.js');
+const LocalStorage = _require('./cli/localStorage.js');
 
 (async () => {
-  const app_data_path = "temp/app-data.json";
-  const app_localStorage_path = "temp/localStorage";
-  const _path = "temp/downloads"
+  // const app_data_path = "temp/app-data.json";
+  // const app_localStorage_path = "temp/localStorage";
+  const downloads_path = "temp/downloads"
 
-  let _app_data = [];
-  let app_data = _app_data;
+  let home_app_data = [];
+  let app_data = home_app_data;
 
-  const localStorage = new LocalStorage(app_localStorage_path)
+  const localStorage = new LocalStorage()
   const event = new EventEmitter();
 
   const thd = new Worker("./cli/data.worker.js", {
     workerData: {
-      _path,
-      app_data_path
+      downloads_path
     }
   })
   thd.id = 0;
@@ -64,9 +63,9 @@ const LocalStorage = require('./localStorage.js');
   const path = require('path');
   const https = require('https');
 
-  !fs.existsSync(_path) && fs.mkdirSync(_path)
+  !fs.existsSync(downloads_path) && fs.mkdirSync(downloads_path)
 
-  async function download(id, prom_h, prom, puts) {
+  async function download([id, prom_h, prom], [puts]) {
     function log(...arg) {
       puts("header", arg.join("\n"))
     }
@@ -194,8 +193,8 @@ const LocalStorage = require('./localStorage.js');
       return prom;
     }
 
-    if (!fs.existsSync(_path)) fs.mkdirSync(_path)
-    const origin_name = path.join(_path, file.name);
+    if (!fs.existsSync(downloads_path)) fs.mkdirSync(downloads_path)
+    const origin_name = path.join(downloads_path, file.name);
     const pending_name = origin_name + ".pending";
 
     start = 0,
@@ -218,7 +217,7 @@ const LocalStorage = require('./localStorage.js');
       if (origin_exist) {
         log("Waiting for input...")
         logUpdate("")
-        const val = await prompt("file exist, wish to overwrite? (y/n)")
+        const val = await prompt(["file exist, wish to overwrite? (y/n)"], [puts])
         if (val.trim().toLowerCase() !== "y") {
           logUpdate("terminated"), resolve();
           return prom
@@ -283,50 +282,50 @@ const LocalStorage = require('./localStorage.js');
     return prom
   }
 
-  function setDataSet() {
-    usr_ipt = pageCurrentIndex+1
-    render.check(pageCurrentIndex)
-    app_data[pageCurrentIndex] && setItem(app_data[pageCurrentIndex], pageCurrentIndex, true)
-    if (getMaxIndex()) {
-      num(usr_ipt)
+  function setDataSet([], []) {
+    usr_ipt = pageCurrentIndex + 1
+    render.check([pageCurrentIndex], [puts])
+    app_data[pageCurrentIndex] && setItem([app_data[pageCurrentIndex], pageCurrentIndex, true], [puts])
+    if (getMaxIndex([], [puts])) {
+      num([usr_ipt], [puts])
     } else {
-      num(false)
+      num([false], [puts])
     }
   }
 
-  function setDataWrapper() {
+  function setDataWrapper([], []) {
     for (let i = 0; i < max_page_index; i++) {
       puts.add("item-" + (i + 1), "")
     }
   }
 
-  function setDefaults() {
+  function setDefaults([], []) {
     puts.add("app_header", AH)
     puts.add("input_header", IH)
-    puts.add("input", IC)
+    num([false, puts.add], [puts])
     puts.add("home_cmd", HC)
     puts.add("header", "")
     puts.add("title", "")
     puts.add("body", "")
     return puts
   }
-  function getPageId(n = pageCurrentIndex) {
+  function getPageId([n = pageCurrentIndex], []) {
     let pageId = n / max_page_index;
     pageId = parseInt(pageId)
     return pageId
   }
-  function getMaxIndex() {
+  function getMaxIndex([], []) {
     return app_data.length ? Number(app_data.length - 1) : 0;
   }
-  function maxPage() {
-    var len = (getMaxIndex()) / max_page_index
+  function maxPage([], []) {
+    var len = (getMaxIndex([], [])) / max_page_index
     if (len.toString().includes(".")) {
       len = parseInt(len)
     }
     return len
   }
-  function render() {
-    const pageId = getPageId();
+  function render([], []) {
+    const pageId = getPageId([], [puts]);
     var id = pageId * max_page_index;
     let _i = 0;
     for (let i = id; i < (id + max_page_index); i++) {
@@ -335,7 +334,7 @@ const LocalStorage = require('./localStorage.js');
         puts.add("item-" + (_i), "")
         continue;
       };
-      setItem(app_data[i], i, void 0, true)
+      setItem([app_data[i], i, void 0, true], [puts])
     }
     puts.drop();
     return true
@@ -343,32 +342,32 @@ const LocalStorage = require('./localStorage.js');
 
   render.i = 0
 
-  render.next = (_pageCurrentIndex) => {
+  render.next = ([_pageCurrentIndex], []) => {
     pageCurrentIndex += max_page_index
-    if (pageCurrentIndex > getMaxIndex()) {
-      pageCurrentIndex = getMaxIndex()
+    if (pageCurrentIndex > getMaxIndex([], [puts])) {
+      pageCurrentIndex = getMaxIndex([], [puts])
     } else {
       if (typeof _pageCurrentIndex === "number" && app_data[_pageCurrentIndex]) {
         pageCurrentIndex = _pageCurrentIndex
       } else {
-        const pageId = getPageId();
+        const pageId = getPageId([], [puts]);
         let n = (max_page_index - 1)
         pageCurrentIndex = (pageId * max_page_index) + n
 
-        while (!app_data[pageCurrentIndex] && getMaxIndex() > 0) {
+        while (!app_data[pageCurrentIndex] && getMaxIndex([], [puts]) > 0) {
           n -= 1
           pageCurrentIndex = (pageId * max_page_index) + n
         }
       }
     }
-    return render()
+    return render([], [puts])
   }
-  render.prev = (_pageCurrentIndex) => {
+  render.prev = ([_pageCurrentIndex], []) => {
     pageCurrentIndex -= max_page_index
     if (pageCurrentIndex < 0) {
       pageCurrentIndex = 0
     } else {
-      const pageId = getPageId();
+      const pageId = getPageId([], [puts]);
 
       if (typeof _pageCurrentIndex === "number" && app_data[_pageCurrentIndex]) {
         pageCurrentIndex = _pageCurrentIndex
@@ -377,33 +376,33 @@ const LocalStorage = require('./localStorage.js');
 
       }
     }
-    return render()
+    return render([], [puts])
   }
-  render.check = (_pageCurrentIndex) => {
-    while (pageCurrentIndex > getMaxIndex() && (pageCurrentIndex > 0 || (pageCurrentIndex = 0))) {
+  render.check = ([_pageCurrentIndex], []) => {
+    while (pageCurrentIndex > getMaxIndex([], [puts]) && (pageCurrentIndex > 0 || (pageCurrentIndex = 0))) {
       pageCurrentIndex -= max_page_index
     }
     if (typeof _pageCurrentIndex === "number" && app_data[_pageCurrentIndex]) {
       pageCurrentIndex = _pageCurrentIndex
     } else {
-      pageCurrentIndex = (getPageId() * max_page_index)
+      pageCurrentIndex = (getPageId([], [puts]) * max_page_index)
     }
-    return render()
+    return render([], [puts])
   }
-  async function close(blk, noDrop) {
+  async function close([blk, noDrop], []) {
     event.emit("cancel")
     busy = active = CMD = false
-    setDefaults()
+    setDefaults([], [puts])
     puts.add("home_cmd", blk ? "" : HC)
     if (noDrop) {
-      num(usr_ipt, puts.add)
+      num([usr_ipt, puts.add], [puts])
     } else {
-      num(usr_ipt)
+      num([usr_ipt], [puts])
     }
   }
-  function setItem({ name }, key, s, int) {
+  function setItem([{ name }, key, s, int], []) {
     key += 1;
-    const n = key - (getPageId() * max_page_index)
+    const n = key - (getPageId([], [puts]) * max_page_index)
     if (n <= 0 || n > max_page_index) {
       return
     }
@@ -416,30 +415,30 @@ const LocalStorage = require('./localStorage.js');
     }
   }
 
-  function send() {
-    const pageId = getPageId()
+  function send([], [puts]) {
+    const pageId = getPageId([], [puts])
     fille = null
     let n = Number(usr_ipt);
     usr_ipt = ""
-    num(false)
-    if (!n) return close();
+    num([false, puts], [puts])
+    if (!n) return close([], [puts]);
     n -= 1;
     const data = app_data[n];
-    if (!data) return close();
-    const d = getPageId(n);
+    if (!data) return close([], [puts]);
+    const d = getPageId([n], [puts]);
     const _pageCurrentIndex = pageCurrentIndex;
     pageCurrentIndex = n;
 
     if (d !== pageId) {
-      render()
+      render([], [puts])
     }
-    if (_pageCurrentIndex >= 0 && _pageCurrentIndex !== pageCurrentIndex) setItem(app_data[_pageCurrentIndex], _pageCurrentIndex)
-    setItem(data, pageCurrentIndex, true)
+    if (_pageCurrentIndex >= 0 && _pageCurrentIndex !== pageCurrentIndex) setItem([app_data[_pageCurrentIndex], _pageCurrentIndex], [puts])
+    setItem([data, pageCurrentIndex, true], [puts])
   }
 
-  function num(usr_ipt, _puts) {
+  function num([usr_ipt, _puts], []) {
     if (!_puts) _puts = puts
-    if (usr_ipt === false) {
+    if (usr_ipt === false || !usr_ipt.toString().trim()) {
       let DF = IC;
       if (typeof INPUT_PAUSED === "string" && INPUT_PAUSED.trim()) {
         DF = INPUT_PAUSED;
@@ -449,7 +448,7 @@ const LocalStorage = require('./localStorage.js');
       _puts("input", chalk.gray("~") + chalk.bgBlue.bold(usr_ipt) + chalk.gray("~"))
     }
   }
-  async function prompt(_IC) {
+  async function prompt([_IC], []) {
     return new Promise((r, j) => {
       if (typeof _IC !== "string" || !_IC.toString().trim()) {
         j("Invalid INPUT")
@@ -459,7 +458,7 @@ const LocalStorage = require('./localStorage.js');
       INPUT_PAUSED = true
       _IC = _IC.toUpperCase();
       puts.add("input_header", _IC + ":")
-      num(IC)
+      num([IC], [puts])
       function cancel() {
         puts.add("input_header", IH)
         j();
@@ -479,6 +478,13 @@ const LocalStorage = require('./localStorage.js');
       event.once("cancel", cancel)
     })
   }
+
+  let file = null;
+  let CMD = false;
+  let INPUT_PAUSED = false;
+  let busy = true;
+  let escapable = true;
+  let usr_ipt = "";
 
   const max_page_index = localStorage.getItem('max_page_index') || 5;
 
@@ -507,25 +513,25 @@ const LocalStorage = require('./localStorage.js');
   const ES = `${BS}`
 
   puts.add("app_header", "")
-  setDataWrapper()
-  setDefaults().drop()
+  setDataWrapper([], [puts])
+  setDefaults([], [puts]).drop()
 
   //#region 
   keypress(process.stdin)
   let key_cmd = {
-    escape: (puts) => {
+    escape: ([], [puts]) => {
       if (!escapable) return puts("body", "This process should automatically exit once done, untill then please hold");
-      close()
+      close([], [puts])
     },
-    return: (puts) => {
-      if (CMD) {
-        key_cmd.file.return()
-      } else {
-        key_cmd.main.return()
-      }
+    return: ([], [puts]) => {
+      // if (CMD) {
+      // key_cmd.file.return()
+      // } else {
+      key_cmd.main.return([], [puts])
+      // }
     },
     main: {
-      r: async (puts) => {
+      r: async ([], [puts]) => {
         puts.add("home_cmd", ES)
         puts.add("header", "Refresh")
         puts.add("title", "Sorting Data")
@@ -534,16 +540,16 @@ const LocalStorage = require('./localStorage.js');
 
         escapable = false;
         try {
-          app_data = _app_data = await listFilesOnly(arg)
+          app_data = home_app_data = await listFilesOnly(arg)
           thd.once("message", data => {
             escapable = true;
-            close()
-            setDataSet()
+            close([], [puts])
+            setDataSet([], [puts])
           })
           thd.postMessage({
             id,
             type: "refresh",
-            _app_data
+            home_app_data
           })
 
         } catch (err) {
@@ -552,10 +558,10 @@ const LocalStorage = require('./localStorage.js');
           return
         }
       },
-      return: (puts) => {
-        send()
+      return: ([], [puts]) => {
+        send([], [puts])
       },
-      s: (puts) => {
+      s: ([], [puts]) => {
         busy = true;
         puts("home_cmd", ES)
         puts("body", "use [enter] to submit")
@@ -568,72 +574,73 @@ const LocalStorage = require('./localStorage.js');
               puts("home_cmd", ER)
             } else {
               app_data = rst
+              localStorage.setItem("app_data.json", app_data)
               pageCurrentIndex = 0;
-              setDataSet()
+              setDataSet([], [puts])
             }
             busy = false
             key_cmd.global.push({
-              name: "escape", cb: () => key_cmd.main.z(puts)
+              name: "escape", cb: () => key_cmd.main.z([], [puts])
             })
           }
         })
       },
-      z: (puts) => {
-        app_data = _app_data
+      z: ([], [puts]) => {
+        localStorage.setItem("app_data.json", app_data = home_app_data)
         pageCurrentIndex = 1;
-        close()
-        setDataSet()
+        close([], [puts])
+        setDataSet([], [puts])
       },
-      up: (puts) => {
-        const m = (getPageId() * max_page_index)
+      up: ([], [puts]) => {
+        const m = (getPageId([], [puts]) * max_page_index)
         let n = pageCurrentIndex - 1
         const data = app_data[n]
         if (!data) return;
         if (n < m) {
-          render.prev()
+          render.prev([], [puts])
         } else {
-          if (pageCurrentIndex >= 0) setItem(app_data[pageCurrentIndex], pageCurrentIndex)
+          if (pageCurrentIndex >= 0) setItem([app_data[pageCurrentIndex], pageCurrentIndex], [puts])
         }
         pageCurrentIndex = n
-        setItem(data, pageCurrentIndex, true)
+        setItem([data, pageCurrentIndex, true], [puts])
         usr_ipt = pageCurrentIndex + 1
-        num(usr_ipt)
+        num([usr_ipt], [puts])
       },
-      down: (puts) => {
-        const m = (getPageId() * max_page_index) + max_page_index
+      down: ([], [puts]) => {
+        const m = (getPageId([], [puts]) * max_page_index) + max_page_index
         let n = pageCurrentIndex + 1
         const data = app_data[n]
         if (!data) return;
         if (n >= m) {
-          render.next()
+          render.next([], [puts])
         } else {
-          if (pageCurrentIndex >= 0) setItem(app_data[pageCurrentIndex], pageCurrentIndex)
+          if (pageCurrentIndex >= 0) setItem([app_data[pageCurrentIndex], pageCurrentIndex], [puts])
         }
         pageCurrentIndex = n
-        setItem(data, pageCurrentIndex, true)
+        setItem([data, pageCurrentIndex, true], [puts])
         usr_ipt = pageCurrentIndex + 1
-        num(usr_ipt)
+        num([usr_ipt], [puts])
       },
-      left: (puts) => {
-        if (render.prev(pageCurrentIndex - max_page_index) && app_data[pageCurrentIndex]) {
+      left: ([], [puts]) => {
+        if (render.prev([pageCurrentIndex - max_page_index], [puts]) && app_data[pageCurrentIndex]) {
           const data = app_data[pageCurrentIndex]
-          setItem(data, pageCurrentIndex, true)
+          setItem([data, pageCurrentIndex, true], [puts])
           usr_ipt = pageCurrentIndex + 1
-          num(usr_ipt)
+          num([usr_ipt], [puts])
         }
 
       },
-      right: (puts) => {
-        if (render.next(pageCurrentIndex + max_page_index) && app_data[pageCurrentIndex]) {
+      right: ([], [puts]) => {
+        if (render.next([pageCurrentIndex + max_page_index], [puts]) && app_data[pageCurrentIndex]) {
           const data = app_data[pageCurrentIndex]
-          setItem(data, pageCurrentIndex, true)
+          setItem([data, pageCurrentIndex, true], [puts])
           usr_ipt = pageCurrentIndex + 1
-          num(usr_ipt)
+          num([usr_ipt], [puts])
         }
       },
     },
     file: {
-      d: (puts) => {
+      d: ([], [puts]) => {
         puts.add("header", "Initializing Download")
         puts("body", "Looking up file")
         key_cmd.busy.push({
@@ -644,7 +651,7 @@ const LocalStorage = require('./localStorage.js');
           }
         })
         try {
-          download(file.id, null, null, puts).then(() => {
+          download([file.id, null, null], [puts]).then(() => {
             puts("body", "Download Resolved")
             busy = false
           }).catch(err => {
@@ -654,7 +661,7 @@ const LocalStorage = require('./localStorage.js');
           puts("body", "Catch Download Error(2): " + error)
         }
       },
-      f: (puts) => {
+      f: ([], [puts]) => {
         puts("body", `
               name: ${file.name}
               size: ${Size(file.size)}
@@ -664,43 +671,43 @@ const LocalStorage = require('./localStorage.js');
               `)
         busy = false
       },
-      delete: async (puts) => {
+      delete: async ([], [puts]) => {
         escapable = false;
         puts.add("header", file.name)
-        .add("title", "Deleting...")
-        .add("body", "Please wait, this should not take long")
-        .drop()
+          .add("title", "Deleting...")
+          .add("body", "Please wait, this should not take long")
+          .drop()
         const id = thd.id += 1
         const del = await deleteFile(file.id, arg)
         if (del === false) {
           puts("body", "Looks like this file no longer exist")
           escapable = true;
           busy = false
-          setDataSet()
+          setDataSet([], [puts])
           return
         } else if (typeof del === "string") {
           puts("title", del)
           puts("body", "")
           escapable = true;
           busy = false
-          setDataSet()
+          setDataSet([], [puts])
           return
         }
         thd.once("message", data => {
-          _app_data = data._app_data
+          home_app_data = data.home_app_data
           app_data = data.app_data
           escapable = true;
           busy = false
           // close()
           puts("body", "Successfully Deleted!")
-          setDataSet()
+          setDataSet([], [puts])
         })
         thd.postMessage({
           id,
           type: "delete",
           index: file.id,
           app_data,
-          _app_data
+          home_app_data
         })
       }
     },
@@ -708,16 +715,8 @@ const LocalStorage = require('./localStorage.js');
     global: []
   }
 
-  let pageCurrentIndex = localStorage.getItem('pageCurrentIndex') || 1;
-
-  let file = null;
-  let CMD = false;
-  let INPUT_PAUSED = false
-  let busy = true
-  let escapable = true;
-
-  let usr_ipt = "";
-
+  let pageCurrentIndex = localStorage.getItem('pageCurrentIndex');
+  if (typeof pageCurrentIndex !== "number") pageCurrentIndex = 0;
   //#endregion
 
   process.stdin.on("keypress", async (ch, arg) => {
@@ -747,21 +746,21 @@ const LocalStorage = require('./localStorage.js');
       const foo = get_cmd(true).busy.find(val => !val.ctrl === !ctrl && (val.name === name || val.name === ch))
       if (foo) {
         get_cmd().busy = [];
-        foo.cb(puts)
+        foo.cb([], [puts])
         return
       };
     } else {
       const foo = get_cmd(true).global.find(val => !val.ctrl === !ctrl && (val.name === name || val.name === ch))
       if (foo) {
         get_cmd().global = [];
-        foo.cb(puts)
+        foo.cb([], [puts])
         return
       };
     };
 
 
     if (name === "escape") {
-      key_cmd.escape(puts)
+      key_cmd.escape([], [puts])
       return
     }
 
@@ -772,38 +771,38 @@ const LocalStorage = require('./localStorage.js');
       } else {
         usr_ipt += ch || ""
       }
-      num(usr_ipt.trim() && usr_ipt || false)
+      num([usr_ipt.trim() && usr_ipt || false], [puts])
     }
 
     if (busy) return
 
     if (ctrl) {
       if (get_cmd(true).main[name]) {
-        close()
-        get_cmd().main[name](puts)
+        close([], [puts])
+        get_cmd().main[name]([], [puts])
         return
       } else if (get_cmd(true).file[name]) {
         file = app_data[pageCurrentIndex]
         if (!file) return
-        close(true, true)
+        close([true, true], [puts])
         puts("home_cmd", ES)
         busy = true
-        await get_cmd().file[name](puts)
+        await get_cmd().file[name]([], [puts])
         return
       } else {
-        close(true, true)
+        close([true, true], [puts])
         puts("home_cmd", IV)
       }
     } else if (name === "delete") {
       file = app_data[pageCurrentIndex]
       if (!file) return
-      close(true, true)
+      close([true, true], [puts])
       puts("home_cmd", ES)
       busy = true
-      await get_cmd().file.delete(puts)
+      await get_cmd().file.delete([], [puts])
       return
     } else if (name === "return") {
-      get_cmd().main.return(puts);
+      get_cmd().main.return([], [puts]);
       return
     }
   })
@@ -855,7 +854,7 @@ const LocalStorage = require('./localStorage.js');
       }
     }
     await crd();
-    setDefaults()
+    setDefaults([], [puts])
     return
   }
 
@@ -870,7 +869,7 @@ const LocalStorage = require('./localStorage.js');
       "refresh_token": token.refresh_token
       // "access_token": token.access_token
     }))
-    setDefaults()
+    setDefaults([], [puts])
   }
 
   TEST = true
@@ -880,15 +879,21 @@ const LocalStorage = require('./localStorage.js');
 
   const arg = { _service: service }
 
-  if (!fs.existsSync(app_data_path)) {
-    _app_data = app_data = await listFilesOnly(arg)
-    fs.writeFileSync(app_data_path, JSON.stringify(app_data))
-  } else {
-    app_data = fs.readFileSync(app_data_path)
-    _app_data = app_data = JSON.parse(app_data)
+  if (!localStorage.hasItem("home_app_data.json")) {
+    home_app_data = await listFilesOnly(arg)
+    localStorage.setItem("home_app_data.json", home_app_data)
+  }else{
+    home_app_data = localStorage.getItem("home_app_data.json")
   }
+  if (!localStorage.hasItem("app_data.json")) {
+    app_data = home_app_data
+    localStorage.setItem("app_data.json", app_data)
+  }else{
+    app_data = localStorage.getItem("app_data.json")
+  }
+
   //#endregion
 
-  setDataSet()
+  setDataSet([], [puts])
   busy = false;
 })();

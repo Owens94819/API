@@ -1,15 +1,15 @@
 const fs = require('node:fs');
 const path = require('node:path');
 module.exports=class localStorage {
-    #path
+    #path="temp/localStorage"
     #checkState(){
 
     }
-    constructor(path){
+    constructor(){
+        const path = this.#path
         if (!fs.existsSync(path)) {
             fs.mkdirSync(path)
         }
-        this.#path=path
     }
     setItem(key, value){
         key = encodeURIComponent(key);
@@ -29,5 +29,18 @@ module.exports=class localStorage {
         }
         this.#checkState()
         return JSON.parse(fs.readFileSync(key).toString()).data
+    }
+    hasItem(key){
+        key = encodeURIComponent(key);
+        key=path.join(this.#path,key)
+        return fs.existsSync(key)
+    }
+    removeItem(key){
+        key = encodeURIComponent(key);
+        key=path.join(this.#path,key)
+        if(fs.existsSync(key)){
+            fs.unlinkSync(key)
+            return true
+        }
     }
 }

@@ -20,21 +20,31 @@ Uint8Array.prototype.write = function (arr) {
 }
 const _MAX_BUFFER = 100_000
 const _TIMEOUT = 20_000 + ((_MAX_BUFFER / 1000) * 100)
+const _SPEED_TIMEOUT = 900
 async function xfetch(...argument) {
     let MAX_BUFFER = _MAX_BUFFER
     let TIMEOUT = _TIMEOUT
+    let SPEED_TIMEOUT = _SPEED_TIMEOUT
     if (typeof arguments[1] === "object") {
         MAX_BUFFER = Number(arguments[1].MAX_BUFFER) || MAX_BUFFER
         TIMEOUT = Number(arguments[1].TIMEOUT) || TIMEOUT
+        SPEED_TIMEOUT = Number(arguments[1].SPEED_TIMEOUT) || SPEED_TIMEOUT
     }
-
+    function _speed_timeout() {
+        if (uint8Array && uint8Array.written) {
+            stream.push(Buffer.from(uint8Array.subarray(0, uint8Array.written)))
+            uint8Array.set(new Uint8Array(uint8Array.written))
+            uint8Array.written = 0;
+        }
+        speed_timeout = void 0
+    }
     function _timeout() {
         callback = () => {
             stream.emit("timeout")
             stream.destroy()
         }
         if (uint8Array && uint8Array.written) {
-            stream.push(Buffer.from(uint8Array.subarray(0, uint8Array.written)))
+            stream._push(Buffer.from(uint8Array.subarray(0, uint8Array.written)))
         } else {
             callback();
             callback = void 0
@@ -46,7 +56,7 @@ async function xfetch(...argument) {
             stream.destroy()
         }
         if (uint8Array && uint8Array.written) {
-            stream.push(Buffer.from(uint8Array.subarray(0, uint8Array.written)))
+            stream._push(Buffer.from(uint8Array.subarray(0, uint8Array.written)))
         } else {
             callback();
             callback = void 0
@@ -57,13 +67,17 @@ async function xfetch(...argument) {
     let args;
     let callback;
     let timeout;
+    let speed_timeout;
     let busy = false;
     let uint8Array = new Uint8Array(MAX_BUFFER)
 
     class Stream extends Readable {
         constructor() {
             super(...arguments)
-            stream =this;
+            stream = this;
+        }
+        _push() {
+            clearTimeout(speed_timeout), speed_timeout = void 0, this.push(...arguments);
         }
         _read() {
             if (busy || stream.destroyed) return;
@@ -73,10 +87,11 @@ async function xfetch(...argument) {
                 return;
             }
             timeout = setTimeout(_timeout, TIMEOUT);
+            if (speed_timeout === void 0) speed_timeout = setTimeout(_speed_timeout, SPEED_TIMEOUT);
             if (args) {
                 next(args)
             } else {
-                    res.read().then(next).catch(_error)
+                res.read().then(next).catch(_error)
             }
         }
         _destroy(err) {
@@ -86,7 +101,7 @@ async function xfetch(...argument) {
         }
     }
 
-    const req = await fetch(...arguments)
+    const req = await fetch(...argument)
     const res = req.body.getReader()
     req.stream = new Stream();
 
@@ -95,10 +110,10 @@ async function xfetch(...argument) {
         clearTimeout(timeout)
         if (done) {
             if (uint8Array && uint8Array.written) {
-                stream.push(Buffer.from(uint8Array.subarray(0, uint8Array.written)))
+                stream._push(Buffer.from(uint8Array.subarray(0, uint8Array.written)))
                 uint8Array = void 0;
             } else {
-                stream.push(null)
+                stream._push(null)
             }
             return
         }
@@ -106,11 +121,11 @@ async function xfetch(...argument) {
         value = uint8Array.write(value)
 
         if (value) {
-            stream.push(Buffer.from(uint8Array))
-            uint8Array = new Uint8Array(MAX_BUFFER)
+            stream._push(Buffer.from(uint8Array))
             args = { value, done }
+            uint8Array = new Uint8Array(MAX_BUFFER)
         } else if (uint8Array.written === uint8Array.length) {
-            stream.push(Buffer.from(uint8Array))
+            stream._push(Buffer.from(uint8Array))
             uint8Array = new Uint8Array(MAX_BUFFER)
         } else {
             stream._read();
@@ -119,4 +134,4 @@ async function xfetch(...argument) {
     return req
 }
 
-module.exports=xfetch
+module.exports = xfetch

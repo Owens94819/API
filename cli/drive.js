@@ -165,7 +165,7 @@ const LocalStorage = _require('./cli/localStorage.js');
       reject = prom_h[1]
     }
 
-    const __foo__ = arguments.callee
+    const __foo__ = download
     const __foo = function () {
       event.off("cancel", kill)
       __foo__(...arguments).catch(reject)

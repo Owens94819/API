@@ -87,7 +87,7 @@ async function xfetch(...argument) {
                 return;
             }
             timeout = setTimeout(_timeout, TIMEOUT);
-            if (speed_timeout === void 0) speed_timeout = setTimeout(_speed_timeout, SPEED_TIMEOUT);
+            // if (speed_timeout === void 0) speed_timeout = setTimeout(_speed_timeout, SPEED_TIMEOUT);
             if (args) {
                 next(args)
             } else {

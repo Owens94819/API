@@ -1,5 +1,7 @@
 .bin
-temp/*
+temp/assets/*
+temp/downloads/*
+temp/localStorage/*
 # Logs
 logs
 *.log

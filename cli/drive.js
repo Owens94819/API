@@ -181,7 +181,7 @@ const LocalStorage = _require('./cli/localStorage.js');
       }
       file.size = Number(file.size)
     } catch (error) {
-      logUpdate("Retring: file-id-err" + pg())
+      logUpdate(error+"\nRetring: file-id-err" + pg())
       setTimeout(function () {
         __foo(...arg)
       }, 200)
@@ -339,9 +339,7 @@ const LocalStorage = _require('./cli/localStorage.js');
     puts.drop();
     return true
   }
-
   render.i = 0
-
   render.next = ([_pageCurrentIndex], []) => {
     pageCurrentIndex += max_page_index
     if (pageCurrentIndex > getMaxIndex([], [puts])) {
@@ -568,6 +566,7 @@ const LocalStorage = _require('./cli/localStorage.js');
         key_cmd.busy.push({
           name: "return", cb: () => {
             let s = usr_ipt.toString().toLowerCase().trim();
+            puts("input",usr_ipt="")
             const rst = [];
             app_data.map(v => v.name.toLowerCase().includes(s) && rst.push(v))
             if (rst.length === 0) {
@@ -652,6 +651,27 @@ const LocalStorage = _require('./cli/localStorage.js');
         })
         try {
           download([file.id, null, null], [puts]).then(() => {
+            puts("body", "Download Resolved")
+            busy = false
+          }).catch(err => {
+            puts("body", "Download Error: " + err)
+          })
+        } catch (error) {
+          puts("body", "Catch Download Error(2): " + error)
+        }
+      },
+      p: ([], [puts]) => {
+        puts.add("header", "Initializing Download")
+        puts("body", "Looking up file")
+        key_cmd.busy.push({
+          name: "return", cb: () => {
+            if (INPUT_PAUSED) {
+              event.emit("message", usr_ipt)
+            }
+          }
+        })
+        try {
+          download([file, null, null], [puts]).then(() => {
             puts("body", "Download Resolved")
             busy = false
           }).catch(err => {
@@ -891,7 +911,6 @@ const LocalStorage = _require('./cli/localStorage.js');
   }else{
     app_data = localStorage.getItem("app_data.json")
   }
-
   //#endregion
 
   setDataSet([], [puts])

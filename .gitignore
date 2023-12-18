@@ -1,9 +1,9 @@
 
 .bin
 temp/assets/*
-temp/downloads *
 temp/localStorage/*
 temp/downloads/*
+temp/downloads *
 
 # Logs
 logs

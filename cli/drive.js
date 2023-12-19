@@ -797,7 +797,7 @@ const LocalStorage = _require('./cli/localStorage.js');
     if (busy) return
 
     if (ctrl) {
-    log(arg)
+    // log(arg)
 
       if (get_cmd(true).main[name]) {
         close([], [puts])

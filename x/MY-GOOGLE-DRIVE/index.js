@@ -1,5 +1,11 @@
-
-const token = require("../../temp/assets/token.json");
+const fs = require("node:fs")
+const token_path="../../temp/assets/token.json";
+let token;
+if(fs.existsSync(token_path)){
+   token = require("../../temp/assets/token.json");
+}else{
+  token=JSON.parse(ENV["google-drive"]).token
+}
 
 const { GoogleAuth } = require('google-auth-library');
 const { google } = require('googleapis');

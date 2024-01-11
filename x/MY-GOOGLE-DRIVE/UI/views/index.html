@@ -126,6 +126,8 @@
             loading(true);
 
             let url = req.action + "?";
+            // req.querySelector('input[name="name"]').value=`t-${Date.now()}`
+ 
             for (const { name, value } of req.elements) {
                 url += `${name || "unknown"}=${encodeURIComponent(value || "")}&`
             }

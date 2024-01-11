@@ -189,7 +189,7 @@ exp.deleteFile = async function (fileId, { _service }) {
     });
     return true
   } catch (error) {
-    return error+"";
+    return error + "";
   }
 }
 exp.downloadFile = async function (fileId, { _service, stream }) {
@@ -245,7 +245,8 @@ exp.uploadBasic = async function ({ name, q, type, obj }) {
 exp.Response = async function (req, res) {
   const msg = {
     msg: null,
-    type: null
+    _id: null,
+    type: "uploading"
   };
 
   const q = req.query;
@@ -324,8 +325,13 @@ exp.Response = async function (req, res) {
       if (!type) type = mimeType.lookup(name) || "application/octet-stream"
 
       q.prog = (q.prog || "").includes("y")
+      res.write();
+
       const file = await exp.uploadBasic({ stream: request.stream, q, name, type, _service, obj: msg }, {
-        onUploadProgress: (progressEvent) => {
+        onUploadProgress: (progressEvent,d) => {
+          // console.log(progressEvent);
+          // puts("console-2", `progressEvent: ${JSON.stringify(progressEvent)}`);
+
           let { bytesRead } = progressEvent;
           if (!bytesRead) {
             msg.type = "updating"
@@ -333,12 +339,18 @@ exp.Response = async function (req, res) {
           } else {
             msg.type = "uploading"
           }
-
+          if (bytesRead < 0) bytesRead = 0
           msg.msg = bytesRead
           msg._id = bytesRead
 
-          puts("console-2", `Uploaded ${bytesRead} bytes`);
+          puts("console-2", `
+          progressEvent: ${JSON.stringify(progressEvent)}\n
+          Uploaded ${bytesRead} bytes
+          `);
           res.write();
+          // setTimeout(() => {
+          //   console.log(d)
+          // }, 6000);
         }
       }).catch(err => err + "");
 
@@ -382,5 +394,5 @@ exp.Response = async function (req, res) {
 if (TEST) {
   module.exports = exp
 } else {
-  module.exports = Response
+  module.exports = exp.Response
 }

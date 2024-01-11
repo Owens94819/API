@@ -12,9 +12,9 @@ require('dotenv').config()
 const express = require("express"),
   ENV = process.env,
   app = express(),
-  url = require("url"),
+  url = require("url");
+  globalThis.TEST = false;
 
-  TEST = false;
 globalThis.ENV = ENV;
 globalThis.express = express;
 globalThis._require = _require;

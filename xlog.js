@@ -1,5 +1,5 @@
 let logs = []
-const chalk = require('chalk');
+// const chalk = require('chalk');
 var key = () => {
     return `x-${Math.random()}-${logs.length}-${Date.now()}`
 };

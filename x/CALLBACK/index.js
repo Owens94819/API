@@ -1,6 +1,8 @@
 module.exports=({url,query}, res) => {
-        res.send("717431987")
+    if ((query["hub.mode"]==="subscribe")&&query["hub.verify_token"]&&query["hub.challenge"]) {
+        res.send(query["hub.challenge"])
         console.log(query);
-    //  res.redirect('http://localhost:3000'+url);
-  
+    }else{
+         res.redirect('http://localhost:3000'+url);
+    }
 }

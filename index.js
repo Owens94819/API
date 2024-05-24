@@ -1,6 +1,7 @@
 
 const { log } = require('node:console');
 const { WriteStream, ReadStream } = require('node:fs');
+
 // const xfetch = require('./xfetch.js');
 
 xfetch = require('./xfetch.js');
@@ -12,6 +13,7 @@ require('dotenv').config()
 const express = require("express"),
   ENV = process.env,
   app = express(),
+  bodyParser = require("body-parser"),
   url = require("url");
   globalThis.TEST = false;
 
@@ -19,7 +21,7 @@ globalThis.ENV = ENV;
 globalThis.express = express;
 globalThis._require = _require;
 _require.module = {};
-
+app.use(bodyParser.json());
 if (ENV.dev === "cmd") {
   import('./cli/drive.js')
 } else {

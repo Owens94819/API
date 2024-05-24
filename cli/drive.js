@@ -1,11 +1,15 @@
+
+
+// const chalk = await import('chalk');
 const { log } = require('node:console');
-const chalk = require('chalk');
 const keypress = require('keypress');
 const { Worker } = require('node:worker_threads');
 const { EventEmitter } = require('node:stream');
 const LocalStorage = _require('./cli/localStorage.js');
 
 (async () => {
+const chalk = (await import('chalk')).default;
+const chalkTemplate = (await import('chalk-template')).default;
   // const app_data_path = "temp/app-data.json";
   // const app_localStorage_path = "temp/localStorage";
   const downloads_path = "temp/downloads"
@@ -243,7 +247,7 @@ const LocalStorage = _require('./cli/localStorage.js');
       if (writing) await writing;
       log(file.name)
 
-      const req = await getPortionOfFile(id, { MAX_BUFFER: 1500_000, TIMEOUT: 40_000, startByte: start, endByte: file.size, _service: service }).catch(err => { log(err) });
+      const req = await getPortionOfFile(id, { MAX_BUFFER: 1_500_000, TIMEOUT: 40_000, startByte: start, endByte: file.size, _service: service }).catch(err => { log(err) });
 
       if (!req || !req.stream) {
         logUpdate("retring" + pg())
@@ -441,7 +445,7 @@ const LocalStorage = _require('./cli/localStorage.js');
       if (typeof INPUT_PAUSED === "string" && INPUT_PAUSED.trim()) {
         DF = INPUT_PAUSED;
       }
-      _puts("input", chalk`{gray ~}{bgBlue.italic ${DF}}{gray ~}`)
+      _puts("input", chalkTemplate`{gray ~}{bgBlue.italic ${DF}}{gray ~}`)
     } else {
       _puts("input", chalk.gray("~") + chalk.bgBlue.bold(usr_ipt) + chalk.gray("~"))
     }
@@ -488,8 +492,8 @@ const LocalStorage = _require('./cli/localStorage.js');
 
   const AH = ""
   const IH = ""
-  const IC = chalk`Type...`
-  const HC = chalk`
+  const IC = chalkTemplate`Type...`
+  const HC = chalkTemplate`
   [{yellow Ctrl}+{yellow Right}]: Next page
   [{yellow Ctrl}+{yellow Left}]: Previous page
   [{yellow Ctrl}+{yellow UP}]: Move Up
@@ -505,9 +509,11 @@ const LocalStorage = _require('./cli/localStorage.js');
   [{yellow enter}]: Select
   [{yellow delete}]
   `
-  const BS = chalk`[{yellow esc}]: escape`
-  const IV = chalk`{red Invalid Command}.\n${BS}`
-  const ER = chalk`{red Empty Result}.\n${BS}`
+  // console.log(cha);
+  // return
+  const BS = chalkTemplate`[{yellow esc}]: escape`
+  const IV = chalkTemplate`{red Invalid Command}.\n${BS}`
+  const ER = chalkTemplate`{red Empty Result}.\n${BS}`
   const ES = `${BS}`
 
   puts.add("app_header", "")
@@ -845,11 +851,11 @@ const LocalStorage = _require('./cli/localStorage.js');
           }
         }
       })
-      puts("app_header", chalk`can not proceed without a google api credentials.\n refer:{blue https://console.cloud.google.com/apis/} `)
+      puts("app_header", chalkTemplate`can not proceed without a google api credentials.\n refer:{blue https://console.cloud.google.com/apis/} `)
       try {
         const credentials = JSON.parse(await prompt("Enter your json credentials"))
         if (!credentials.web || !credentials.web.client_id || !credentials.web.client_secret) {
-          throw chalk`
+          throw chalkTemplate`
       {red invalid credentials entered, try another!.}
       here are values the credentials show atleast have:
      ${chalk.blue(`{
@@ -867,7 +873,7 @@ const LocalStorage = _require('./cli/localStorage.js');
       `
         }
         if (!credentials.redirect_uris || !credentials.redirect_uri) {
-          throw chalk`{red no redirect url in your json credential, you should refer to your google-api to set it up}`
+          throw chalkTemplate`{red no redirect url in your json credential, you should refer to your google-api to set it up}`
         }
         fs.writeFileSync(credentials_path, JSON.stringify(credentials))
       } catch (error) {
@@ -882,7 +888,7 @@ const LocalStorage = _require('./cli/localStorage.js');
 
   const auth = _require('./x/MY-GOOGLE-DRIVE/auth.js');
   if (!fs.existsSync(token_path)) {
-    puts.add("app_header", chalk`{red no token found.} `)
+    puts.add("app_header", chalkTemplate`{red no token found.} `)
     const token = await auth.getAuthCode();
     fs.writeFileSync(token_path, JSON.stringify({
       "type": token.token_type,

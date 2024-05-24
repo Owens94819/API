@@ -1,8 +1,10 @@
+const { cwd } = require("node:process");
 const fs = require("node:fs")
-const token_path="../../temp/assets/token.json";
+const path = require("node:path")
+const token_path=path.join(cwd(),"temp/assets/token.json");
 let token;
 if(fs.existsSync(token_path)){
-   token = require("../../temp/assets/token.json");
+   token = require(token_path);
 }else{
   token=JSON.parse(ENV["google-drive"]).token
 }

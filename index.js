@@ -21,12 +21,12 @@ globalThis._require = _require;
 _require.module = {};
 
 if (ENV.dev === "cmd") {
-  require('./cli/drive.js')
+  import('./cli/drive.js')
 } else {
   const server = app.listen(ENV.PORT || void 0, () => {
     var port = server.address().port;
     puts(`http://localhost:${port}\n-----------`);
-    if (ENV.dev) require('./cli/drive.js')
+    if (ENV.dev) import('./cli/drive.js')
   });
 }
 

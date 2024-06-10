@@ -311,7 +311,7 @@ exp.Response = async function (req, res) {
   try {
 
 
-    const request = await xfetch(url, { MAX_BUFFER: 2_000_000, TIMEOUT: 40_000 })
+    const request = await xfetch(url, { MAX_BUFFER: 10_000_000, TIMEOUT: 40_000 })
     if (request.ok) {
       if (!type) type = (request.headers.get("content-type") || "");
 

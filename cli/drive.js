@@ -227,9 +227,26 @@ const chalkTemplate = (await import('chalk-template')).default;
           return prom
         }
       } else {
-        fs.writeFile(origin_name, Buffer.alloc(file.size), err => {
-          if (err) log(err)
-        })
+       log("size: "+file.size)
+       fs.writeFileSync(origin_name,'')
+      // fd = fs.openSync(origin_name, "r+")
+        // fs.writeSync(fd,Buffer.allocUnsafe,0,file.size)
+        // const max=4_294_967_296;
+        const max=2_147_483_647;
+        // const intr=file.size/max;
+        let r_size=file.size
+        // let size=r_size
+        let i=0;
+        while (r_size>0) {
+          const init=r_size=r_size-max
+          let size=max;
+          if (init<0) {
+            size+=init
+          }
+          fs.writeFileSync(origin_name, Buffer.alloc(size),{flag:"as+"})
+          logUpdate(size+"--"+i++)
+        }
+        log(file.name)
       }
       fs.writeFileSync(pending_name, buf)
       fd = fs.openSync(pending_name, "r+")
@@ -246,7 +263,7 @@ const chalkTemplate = (await import('chalk-template')).default;
     async function fetch() {
       if (writing) await writing;
       log(file.name)
-
+      // log(start);
       const req = await getPortionOfFile(id, { MAX_BUFFER: 1_500_000, TIMEOUT: 40_000, startByte: start, endByte: file.size, _service: service }).catch(err => { log(err) });
 
       if (!req || !req.stream) {

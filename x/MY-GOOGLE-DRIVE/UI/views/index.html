@@ -96,7 +96,7 @@
                     msg.innerHTML = data.msg;
                     break;
                 case "uploading":
-                    msg.innerHTML = (` uploaded: ${((data.msg)/1024)/1024 }MB`)
+                    msg.innerHTML = (` uploaded: ${Math.round(((data.msg)/1024)/1024 )}MB`)
                     break;
                 default:
                     msg.append(data.msg)

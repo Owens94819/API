@@ -245,7 +245,7 @@ const chalkTemplate = (await import('chalk-template')).default;
           }
           fs.writeFileSync(origin_name, Buffer.alloc(size),{flag:"as+"})
           logUpdate(size+"--"+i++)
-        }
+        } 
         log(file.name)
       }
       fs.writeFileSync(pending_name, buf)

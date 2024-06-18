@@ -351,14 +351,11 @@ exp.Response = async function (req, res) {
           msg.msg = bytesRead
           msg._id = bytesRead
 
-          try {
             puts("console-2", `
               progressEvent: ${JSON.stringify(progressEvent)}\n
               Uploaded ${bytesRead} bytes
               `);
-          } catch (error) {
-            console.log("JSON ERR-000"+error);
-          }
+          
           res.write();
           // setTimeout(() => {
           //   console.log(d)

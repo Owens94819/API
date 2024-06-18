@@ -16,10 +16,13 @@ async function logUpdate(){
 module.exports = print
 
  function print(id, msg) {
-    if (arguments.length <= 1) {
-        msg = id;
-        id = key()
-    }
+     if (arguments.length <= 1) {
+         msg = id;
+         id = key()
+        }
+        if (!process.env.dev) {
+            return console.log(msg);
+        }
     if (map.hasOwnProperty(id)) {
         id = map[id]
         logs[id] = msg
